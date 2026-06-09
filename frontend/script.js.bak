@@ -1,0 +1,688 @@
+/* =============================================
+   TRADLYS — Frontend Controller
+   Vanilla JS | No framework
+   ============================================= */
+
+'use strict';
+
+const CONFIG = {
+  API_URL: 'http://localhost:5000/api',
+  RECONNECT_DELAY: 5000,
+  MAX_HISTORY: 100
+};
+
+const state = {
+  token: localStorage.getItem('tradlys_token') || null,
+  user: JSON.parse(localStorage.getItem('tradlys_user') || 'null'),
+  currentSection: 'dashboard',
+  selectedFile: null,
+  isAnalyzing: false,
+  watchlist: JSON.parse(localStorage.getItem('tradlys_watchlist') || '[]'),
+  allHistory: []
+};
+
+const qs = (sel) => document.querySelector(sel);
+const qsa = (sel) => document.querySelectorAll(sel);
+const el = (id) => document.getElementById(id);
+const show = (id) => { const e = el(id); if (e) e.classList.remove('hidden'); };
+const hide = (id) => { const e = el(id); if (e) e.classList.add('hidden'); };
+
+function showSection(section) {
+  state.currentSection = section;
+  qsa('.section').forEach((s) => s.classList.add('hidden'));
+  qsa('.nav-link').forEach((btn) => btn.classList.remove('active'));
+  const sectionMap = {
+    dashboard: 'dashboardSection',
+    analyze: 'analyzeSection',
+    history: 'historySection',
+    admin: 'adminSection'
+  };
+  const sectionEl = el(sectionMap[section]);
+  if (sectionEl) {
+    sectionEl.classList.remove('hidden');
+    const navBtn = [...qsa('.nav-link')].find((btn) => btn.textContent.trim().toLowerCase() === section);
+    if (navBtn) navBtn.classList.add('active');
+  }
+  if (section === 'dashboard') loadDashboard();
+  if (section === 'history') loadHistory();
+  if (section === 'admin') loadAdminStats();
+  updateAuthUI();
+}
+
+function showToast(message, type) {
+  type = type || 'info';
+  const toast = document.createElement('div');
+  toast.className = 'toast toast-' + type;
+  toast.textContent = message;
+  document.body.appendChild(toast);
+  setTimeout(function() { toast.style.opacity = '0'; toast.style.transition = 'opacity 0.4s'; }, 3000);
+  setTimeout(function() { toast.remove(); }, 3500);
+}
+
+function getAuthHeaders() {
+  var headers = { 'Content-Type': 'application/json' };
+  if (state.token) headers['Authorization'] = 'Bearer ' + state.token;
+  return headers;
+}
+
+function updateAuthUI() {
+  var authBtn = el('authBtn');
+  var userInfo = el('userInfo');
+  if (state.user) {
+    authBtn.textContent = 'Logout';
+    authBtn.className = 'btn btn-outline';
+    userInfo.textContent = state.user.email || (state.user.uid || '').slice(0, 8) || '';
+  } else {
+    authBtn.textContent = 'Login';
+    authBtn.className = 'btn btn-outline';
+    userInfo.textContent = '';
+  }
+}
+
+function handleAuth() {
+  if (state.user) {
+    state.token = null;
+    state.user = null;
+    localStorage.removeItem('tradlys_token');
+    localStorage.removeItem('tradlys_user');
+    updateAuthUI();
+    showSection('dashboard');
+    showToast('Logged out successfully', 'info');
+  } else {
+    handleLoginPrompt();
+  }
+}
+
+function handleLoginPrompt() {
+  if (typeof firebase !== 'undefined' && typeof google !== 'undefined') {
+    firebase.auth().signInWithPopup(new firebase.auth.GoogleAuthProvider())
+      .then(function(result) {
+        var token = result.user;
+        var idToken = result.credential.accessToken;
+        fetch(CONFIG.API_URL + '/verify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ idToken: idToken, email: token.email })
+        })
+        .then(function(res) { return res.json(); })
+        .then(function(data) {
+          state.token = idToken;
+          state.user = data.user;
+          localStorage.setItem('tradlys_token', idToken);
+          localStorage.setItem('tradlys_user', JSON.stringify(data.user));
+          updateAuthUI();
+          showToast('Login successful!', 'success');
+          showSection('dashboard');
+        })
+        .catch(function() { showToast('Backend auth failed', 'error'); });
+      })
+      .catch(function(err) { showToast('Auth failed: ' + err.message, 'error'); });
+  } else {
+    promptLogin();
+  }
+}
+
+function promptLogin() {
+  var email = prompt('Enter your email to continue (demo mode):');
+  if (email && email.indexOf('@') !== -1) {
+    var demoUser = {
+      uid: 'demo_' + Date.now(),
+      email: email
+    };
+    state.token = 'demo_token_' + Date.now();
+    state.user = demoUser;
+    localStorage.setItem('tradlys_token', state.token);
+    localStorage.setItem('tradlys_user', JSON.stringify(demoUser));
+    updateAuthUI();
+    showSection('dashboard');
+    showToast('Demo logged in. For full auth, add Firebase to backend.', 'info');
+  }
+}
+
+async function api(url, options) {
+  options = options || {};
+  var token = localStorage.getItem('tradlys_token');
+  var headers = {
+    'Content-Type': 'application/json',
+    ...options.headers
+  };
+  if (token) headers['Authorization'] = 'Bearer ' + token;
+  var res = await fetch(CONFIG.API_URL + url, Object.assign({}, options, { headers: headers }));
+  var contentType = res.headers.get('content-type');
+  if (contentType && contentType.indexOf('application/json') !== -1) {
+    var data = await res.json();
+    if (!res.ok) throw new Error(data.message || 'API error');
+    return data;
+  }
+  if (!res.ok) throw new Error('HTTP ' + res.status);
+  return res;
+}
+
+async function apiMultipart(url, formData) {
+  var token = localStorage.getItem('tradlys_token');
+  var headers = {};
+  if (token) headers['Authorization'] = 'Bearer ' + token;
+  var res = await fetch(CONFIG.API_URL + url, {
+    method: 'POST',
+    headers: headers,
+    body: formData
+  });
+  var data = await res.json();
+  if (!res.ok) throw new Error(data.message || 'Upload failed');
+  return data;
+}
+
+function setupUpload() {
+  var zone = el('uploadZone');
+  var input = el('chartImage');
+
+  zone.addEventListener('click', function() { input.click(); });
+  zone.addEventListener('dragover', function(e) { e.preventDefault(); zone.classList.add('dragover'); });
+  zone.addEventListener('dragleave', function() { zone.classList.remove('dragover'); });
+  zone.addEventListener('drop', function(e) {
+    e.preventDefault();
+    zone.classList.remove('dragover');
+    var file = e.dataTransfer.files[0];
+    if (file) handleFile(file);
+  });
+  input.addEventListener('change', function() {
+    if (input.files[0]) handleFile(input.files[0]);
+  });
+}
+
+function handleFile(file) {
+  var allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/jpg'];
+  if (allowed.indexOf(file.type) === -1) {
+    showToast('Invalid file type. JPG, PNG, WEBP only.', 'error');
+    return;
+  }
+  if (file.size > 10 * 1024 * 1024) {
+    showToast('File too large. Max 10MB allowed.', 'error');
+    return;
+  }
+  state.selectedFile = file;
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    el('previewImg').src = e.target.result;
+    show('uploadPreview');
+  };
+  reader.readAsDataURL(file);
+}
+
+function clearImage() {
+  state.selectedFile = null;
+  el('chartImage').value = '';
+  hide('uploadPreview');
+}
+
+async function analyzeImage() {
+  if (state.isAnalyzing) return;
+  var btn = el('analyzeImageBtn');
+  if (!state.token) {
+    showToast('Please login first', 'error');
+    promptLogin();
+    return;
+  }
+  var body = {
+    marketName: el('marketName').value || 'Generic',
+    timeframe: el('timeframe').value || 'Daily',
+    question: el('imageQuestion').value || undefined
+  };
+  var formData;
+  if (state.selectedFile) {
+    formData = new FormData();
+    formData.append('chartImage', state.selectedFile, state.selectedFile.name);
+    formData.append('marketName', body.marketName);
+    formData.append('timeframe', body.timeframe);
+    formData.append('question', body.question || '');
+  } else {
+    showToast('Please select a chart image', 'error');
+    return;
+  }
+  setLoading(btn, true);
+  try {
+    var data = await apiMultipart('/analyze/image', formData);
+    console.log('Image Analysis Response:', data);
+    if (data && data.report) {
+      renderReport(data.report);
+      showToast('Analysis complete!', 'success');
+    } else {
+      showToast('Analysis returned empty report', 'error');
+    }
+  } catch (err) {
+    console.error('analyzeImage error:', err);
+    showToast(err.message, 'error');
+  } finally {
+    setLoading(btn, false);
+  }
+}
+
+async function analyzeText() {
+  if (state.isAnalyzing) return;
+  var btn = el('analyzeTextBtn');
+  if (!state.token) {
+    showToast('Please login first', 'error');
+    promptLogin();
+    return;
+  }
+  var question = el('textQuestion').value.trim();
+  if (!question) {
+    showToast('Please enter a question', 'error');
+    return;
+  }
+  var body = {
+    question: question,
+    marketName: el('textMarketName').value || 'Generic',
+    timeframe: el('textTimeframe').value || 'Daily'
+  };
+  setLoading(btn, true);
+  try {
+    var data = await api('/analyze/text', {
+      method: 'POST',
+      body: JSON.stringify(body)
+    });
+    console.log('API response received:', data);
+    var report = data && data.report;
+    if (!report) {
+      console.warn('Report missing in API response', data);
+      showToast('Analysis returned empty report', 'error');
+      return;
+    }
+    console.log('renderReport called with text report');
+    renderReport(report);
+    showToast('Analysis complete!', 'success');
+  } catch (err) {
+    console.error('analyzeText error:', err);
+    showToast(err.message, 'error');
+  } finally {
+    setLoading(btn, false);
+  }
+}
+
+function setLoading(btn, loading) {
+  state.isAnalyzing = loading;
+  if (loading) {
+    btn.disabled = true;
+    btn.dataset.originalText = btn.textContent;
+    btn.textContent = '⏳ Analyzing...';
+  } else {
+    btn.disabled = false;
+    btn.textContent = btn.dataset.originalText || btn.textContent;
+  }
+}
+
+function getReportContainer() {
+  var container = el('reportSection');
+  if (!container) {
+    console.warn('reportSection not found in DOM, creating new');
+    container = document.createElement('div');
+    container.id = 'reportSection';
+    container.className = 'card report-card full-width';
+    container.innerHTML = '<div class="report-card-glow"></div><div class="card-header"><div class="report-header-left"><span class="report-icon">🤖</span><div><h3>AI Analysis Report</h3><p class="report-subtitle">Educational analysis only — not financial advice.</p></div></div><div class="report-badges"><span id="reportBias" class="badge-badge"></span><span id="reportRisk" class="badge-badge"></span><span id="reportConfidence" class="badge-badge"></span></div></div><div class="card-body"><div class="report-hero"><div class="report-hero-item"><span class="report-hero-label">Market</span><span id="reportMarket" class="report-hero-value"></span></div><div class="report-hero-item"><span class="report-hero-label">Timeframe</span><span id="reportTimeframe" class="report-hero-value"></span></div><div class="report-hero-item"><span class="report-hero-label">Trend</span><span id="reportTrend" class="report-hero-value"></span></div></div><div class="report-section-title">📊 Scenarios</div><div class="report-scenarios"><div class="scenario-card bullish-card"><div class="scenario-header"><span class="scenario-dot bullish-dot"></span><strong>Bullish Scenario</strong></div><p id="reportBullish"></p></div><div class="scenario-card bearish-card"><div class="scenario-header"><span class="scenario-dot bearish-dot"></span><strong>Bearish Scenario</strong></div><p id="reportBearish"></p></div><div class="scenario-card sideways-card"><div class="scenario-header"><span class="scenario-dot sideways-dot"></span><strong>Sideways Scenario</strong></div><p id="reportSideways"></p></div></div><div class="report-section-title">📍 Key Levels</div><div class="levels-grid"><div class="level-card bullish-card"><div class="level-card-header"><span class="level-icon">🟢</span><strong>Support Zones</strong></div><ul id="reportSupport" class="level-list"></ul></div><div class="level-card bearish-card"><div class="level-card-header"><span class="level-icon">🔴</span><strong>Resistance Zones</strong></div><ul id="reportResistance" class="level-list"></ul></div><div class="level-card target-card"><div class="level-card-header"><span class="level-icon">🎯</span><strong>Target Zones</strong></div><ul id="reportTargets" class="level-list"></ul></div></div><div class="report-section-title">💡 Entry & Risk</div><div class="logic-grid-2"><div class="logic-card"><div class="logic-card-header">📥 Entry Logic</div><p id="reportEntry"></p></div><div class="logic-card"><div class="logic-card-header">🛑 Stop Loss Logic</div><p id="reportStopLoss"></p></div><div class="logic-card invalid-card"><div class="logic-card-header">⚠️ Invalid Conditions</div><p id="reportInvalid"></p></div></div><div class="report-section-title">🔑 Key Reasons</div><ul id="reportReasons" class="reasons-list"></ul><div class="report-section-title">📰 News Impact</div><div class="news-impact-card"><p id="reportNews"></p></div><div class="report-section-title">🌐 Live Market Context</div><div class="market-context-card"><p id="reportContext"></p></div><div class="report-footer-note"><p>📌 <strong>Final Note:</strong> This is educational analysis only, not financial advice. Always do your own research before trading.</p></div></div>';
+    var analyzeSection = el('analyzeSection');
+    if (analyzeSection) {
+      analyzeSection.appendChild(container);
+    } else {
+      document.body.appendChild(container);
+    }
+    console.log('report container created dynamically');
+  }
+  console.log('report container found:', container.id);
+  return container;
+}
+
+function renderReport(report, target) {
+  console.log('renderReport called');
+  if (!report) {
+    console.warn('renderReport: missing report');
+    return;
+  }
+  console.log('renderReport: received report for', report.marketName);
+  var container = target || getReportContainer();
+  console.log('report container found:', container.id);
+
+  el('reportMarket').textContent = report.marketName || '';
+  el('reportTimeframe').textContent = report.timeframe || '';
+  el('reportTrend').textContent = report.trend || '';
+
+  var bias = (report.overallBias || 'Unclear').toLowerCase();
+  var biasEl = el('reportBias');
+  biasEl.className = 'badge-badge ' + (bias === 'bullish' ? 'badge-bullish' : bias === 'bearish' ? 'badge-bearish' : 'badge-neutral');
+  biasEl.textContent = report.overallBias || 'Unclear';
+
+  var riskLabel = (report.riskLevel || 'Medium').toLowerCase();
+  el('reportRisk').className = 'badge-badge risk-' + riskLabel;
+  el('reportRisk').textContent = 'Risk: ' + report.riskLevel;
+
+  var confLabel = (report.confidence || 'Low').toLowerCase();
+  el('reportConfidence').className = 'badge-badge confidence-' + confLabel;
+  el('reportConfidence').textContent = 'Confidence: ' + report.confidence;
+
+  el('reportBullish').textContent = report.bullishScenario || 'No specific bullish scenario defined.';
+  el('reportBearish').textContent = report.bearishScenario || 'No specific bearish scenario defined.';
+  el('reportSideways').textContent = report.sidewaysScenario || 'No specific sideways scenario defined.';
+
+  var supportHtml = (report.supportZones || []).map(function(z) { return '<li>' + z + '</li>'; }).join('');
+  var resistanceHtml = (report.resistanceZones || []).map(function(z) { return '<li>' + z + '</li>'; }).join('');
+  var targetsHtml = (report.targetZones || []).map(function(z) { return '<li>' + z + '</li>'; }).join('');
+  el('reportSupport').innerHTML = supportHtml || '<li>No support zones defined</li>';
+  el('reportResistance').innerHTML = resistanceHtml || '<li>No resistance zones defined</li>';
+  el('reportTargets').innerHTML = targetsHtml || '<li>No target zones defined</li>';
+
+  el('reportEntry').textContent = report.entryZoneLogic || 'No entry logic defined.';
+  el('reportStopLoss').textContent = report.stopLossLogic || 'No stop loss logic defined.';
+  el('reportInvalid').textContent = report.invalidCondition || 'No invalid conditions defined.';
+  el('reportReasons').innerHTML = (report.keyReasons || []).map(function(r) { return '<li>' + r + '</li>'; }).join('');
+  el('reportNews').textContent = report.newsImpact || 'No news impact data available.';
+  el('reportContext').textContent = report.liveMarketContext || 'No live market context available.';
+
+  if (container) {
+    container.classList.remove('hidden');
+    console.log('report container visibility restored');
+  }
+  setTimeout(function() {
+    if (container) {
+      container.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, 100);
+  console.log('report injected successfully');
+}
+
+// ===== HISTORY =====
+async function loadHistory() {
+  if (!state.user) {
+    el('historyList').innerHTML = '<p style="color: var(--text-muted); text-align:center;">Please login to view history</p>';
+    return;
+  }
+  el('historyList').innerHTML = '<div class="loading"><div class="spinner"></div> Loading...</div>';
+  try {
+    var data = await api('/history/' + state.user.uid);
+    state.allHistory = data.history || [];
+    filterHistory();
+  } catch (err) {
+    el('historyList').innerHTML = '<p style="color: var(--red);">' + err.message + '</p>';
+  }
+}
+
+function filterHistory() {
+  var query = (el('historySearch').value || '').toLowerCase();
+  var reports = state.allHistory || [];
+  var filtered = reports;
+  if (query) {
+    filtered = reports.filter(function(r) {
+      var text = (r.analysisData && r.analysisData.marketName ? r.analysisData.marketName : '') + ' ' + (r.type || '');
+      return text.toLowerCase().indexOf(query) !== -1;
+    });
+  }
+  var container = el('historyList');
+  if (filtered.length === 0) {
+    container.innerHTML = '<p style="color: var(--text-muted); text-align:center; padding: 40px;">No analysis history yet.</p>';
+    return;
+  }
+  container.innerHTML = filtered.map(function(r) {
+    var reportId = r.reportId || r.id;
+    return '<div class="history-item" onclick="loadHistoryDetail(\'' + reportId + '\')">' +
+      '<span class="history-type-icon">' + (r.type === 'image' ? '📸' : '💬') + '</span>' +
+      '<div class="history-info">' +
+        '<div class="history-market">' + (r.analysisData && r.analysisData.marketName ? r.analysisData.marketName : 'Unknown') + '</div>' +
+        '<div class="history-date">' + new Date(r.createdAt).toLocaleString() + '</div>' +
+      '</div>' +
+      '<span class="badge-bias ' + ('bias-' + (r.analysisData && r.analysisData.overallBias ? r.analysisData.overallBias.toLowerCase() : 'unclear')) + '">' + (r.analysisData && r.analysisData.overallBias ? r.analysisData.overallBias : '—') + '</span>' +
+    '</div>';
+  }).join('');
+}
+
+async function loadHistoryDetail(reportId) {
+  showToast('Loading report details...', 'info');
+  try {
+    var data = await api('/history/' + (state.user ? state.user.uid : 'demo'));
+    var report = (data.history || []).find(function(item) { return item.reportId === reportId || item.id === reportId; });
+    if (!report) {
+      showToast('Report not found', 'error');
+      return;
+    }
+    var result = report.analysisData || report;
+    renderReport(result);
+    showSection('analyze');
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+
+// ===== DASHBOARD =====
+async function loadDashboard() {
+  el('marketData').innerHTML = '<div class="loading"><div class="spinner"></div> Loading market data...</div>';
+  el('newsData').innerHTML = '<div class="loading"><div class="spinner"></div> Loading news...</div>';
+  try {
+    var data = await api('/market/live');
+    var marketData = data.data || [];
+    el('marketData').innerHTML = marketData.map(function(item) {
+      return '<div class="market-item"><div><div class="market-symbol">' + item.symbol + '</div><div class="market-name">' + item.name + '</div></div><div style="text-align:right"><div class="market-price">₹' + (item.ltp != null ? item.ltp.toFixed(2) : '—') + '</div><div class="market-change ' + (item.change >= 0 ? 'up' : 'down') + '">' + (item.change >= 0 ? '+' : '') + (item.change != null ? item.change.toFixed(2) : '0') + ' (' + (item.changePercent != null ? item.changePercent.toFixed(2) : '0') + '%)</div></div></div>';
+    }).join('');
+  } catch (err) {
+    el('marketData').innerHTML = '<p style="color: var(--red);">Failed to load market data: ' + err.message + '</p>';
+  }
+  try {
+    var data = await api('/market/live');
+    var news = data.news || data;
+    var headlines = news.headlines || [];
+    if (headlines.length === 0) {
+      el('newsData').innerHTML = '<p style="color: var(--text-muted);">No news available.</p>';
+    } else {
+      el('newsData').innerHTML = headlines.map(function(n) {
+        return '<div class="news-item"><div class="news-title">' + n.title + '</div><div class="news-meta"><span>' + (n.source || 'News') + '</span><span class="sentiment-' + (n.sentiment || 'neutral').toLowerCase() + '">' + (n.sentiment || 'Neutral') + '</span></div></div>';
+      }).join('');
+    }
+  } catch (err) {
+    el('newsData').innerHTML = '<p style="color: var(--red);">Failed to load news</p>';
+  }
+}
+
+function refreshMarket() {
+  showToast('Refreshing market data...', 'info');
+  loadDashboard();
+}
+
+// ===== ADMIN =====
+async function loadAdminStats() {
+  if (!state.user) {
+    showToast('Please login', 'error');
+    return;
+  }
+  try {
+    var result = await api('/admin/stats');
+    var stats = result.stats || {};
+    el('statUsers').textContent = stats.totalUsers || 0;
+    el('statReports').textContent = stats.totalReports || 0;
+    el('statToday').textContent = stats.reportsToday || 0;
+  } catch (err) {
+    showToast(err.message === 'Access denied' ? 'Admin access required' : err.message, 'error');
+    el('statUsers').textContent = '—';
+    el('statReports').textContent = '—';
+    el('statToday').textContent = '—';
+  }
+}
+
+// ===== TICKER =====
+function buildTicker(stocks) {
+  var track = el('tickerTrack');
+  var items = stocks.map(function(s) {
+    return '<span class="ticker-item"><strong>' + s.symbol + '</strong> ₹' + (s.ltp != null ? s.ltp.toFixed(2) : '—') + ' <span class="ticker-change ' + (s.change >= 0 ? 'up' : 'down') + '">' + (s.change >= 0 ? '+' : '') + (s.changePercent != null ? s.changePercent.toFixed(2) : '0') + '%</span></span>';
+  });
+  track.innerHTML = items.join('') + items.join('');
+}
+
+function loadTicker() {
+  fetch(CONFIG.API_URL + '/market/live')
+    .then(function(res) { return res.json(); })
+    .then(function(data) {
+      var stocks = data.data || [];
+      if (stocks.length > 0) buildTicker(stocks);
+    })
+    .catch(function() { buildTicker(getTickerFallback()); });
+}
+
+function getTickerFallback() {
+  return [
+    { symbol: 'NIFTY', ltp: 22045, changePercent: 0.57, change: 125 },
+    { symbol: 'BANKNIFTY', ltp: 48250, changePercent: -0.37, change: -180 },
+    { symbol: 'RELIANCE', ltp: 2890, changePercent: 1.14, change: 32.5 },
+    { symbol: 'TCS', ltp: 3850, changePercent: -0.40, change: -15.3 }
+  ];
+}
+
+// ===== WATCHLIST =====
+function persistWatchlist() {
+  localStorage.setItem('tradlys_watchlist', JSON.stringify(state.watchlist));
+}
+
+function renderWatchlist() {
+  var container = el('watchlistData');
+  var empty = el('watchlistEmpty');
+  if (!container) return;
+  var list = state.watchlist || [];
+  if (list.length === 0) {
+    container.innerHTML = '';
+    if (empty) empty.classList.remove('hidden');
+    return;
+  }
+  if (empty) empty.classList.add('hidden');
+  container.innerHTML = list.map(function(item) {
+    var changeClass = (item.changePercent || 0) >= 0 ? 'bullish' : 'bearish';
+    var changeText = item.changePercent != null ? (item.changePercent >= 0 ? '+' : '') + item.changePercent.toFixed(2) + '%' : '—';
+    return '<div class="watchlist-item"><span class="symbol">' + (item.symbol || '—') + '</span><div style="display:flex;gap:8px;align-items:center;"><span class="change ' + changeClass + '">' + changeText + '</span><button class="btn btn-sm btn-danger" onclick="removeWatchlist(\'' + (item.symbol || '') + '\')" aria-label="Remove ' + (item.symbol || '') + '">✕</button></div></div>';
+  }).join('');
+}
+
+function addWatchlist(symbol) {
+  var clean = String(symbol || '').trim().toUpperCase();
+  if (!clean) return;
+  var exists = (state.watchlist || []).some(function(item) { return String(item.symbol || '').toUpperCase() === clean; });
+  if (exists) {
+    showToast('Symbol already in watchlist', 'info');
+    return;
+  }
+  state.watchlist = state.watchlist || [];
+  state.watchlist.push({ symbol: clean, changePercent: null, price: null });
+  persistWatchlist();
+  renderWatchlist();
+  syncWatchlistPrice();
+  showToast('Added to watchlist', 'success');
+}
+
+function removeWatchlist(symbol) {
+  var clean = String(symbol || '').trim().toUpperCase();
+  state.watchlist = (state.watchlist || []).filter(function(item) { return String(item.symbol || '').toUpperCase() !== clean; });
+  persistWatchlist();
+  renderWatchlist();
+}
+
+function openWatchlistModal() {
+  show('watchlistModal');
+  var input = el('watchlistInput');
+  if (input) { input.value = ''; input.focus(); }
+}
+
+function closeWatchlistModal() {
+  hide('watchlistModal');
+}
+
+function addWatchlistFromModal() {
+  var input = el('watchlistInput');
+  if (input) {
+    addWatchlist(input.value);
+    closeWatchlistModal();
+  }
+}
+
+async function syncWatchlistPrice() {
+  if (!state.watchlist.length) return;
+  try {
+    var data = await api('/market/live');
+    var marketData = data.data || [];
+    state.watchlist = state.watchlist.map(function(item) {
+      var found = marketData.find(function(m) { return String(m.symbol || '').toUpperCase() === String(item.symbol || '').toUpperCase(); });
+      if (found) {
+        return {
+          symbol: found.symbol || item.symbol,
+          changePercent: found.changePercent,
+          price: found.ltp,
+          change: found.change
+        };
+      }
+      return item;
+    });
+    persistWatchlist();
+    renderWatchlist();
+  } catch (err) {
+    console.warn('Watchlist sync failed:', err);
+  }
+}
+
+// ===== TRENDING / GAINERS / LOSERS =====
+var currentTrendingTab = 'trending';
+
+async function loadTrending(tab) {
+  tab = tab || 'trending';
+  currentTrendingTab = tab;
+  qsa('.trend-tab').forEach(function(btn) {
+    var isActive = btn.dataset.trend === tab;
+    btn.classList.toggle('active', isActive);
+    btn.classList.toggle('btn-primary', isActive);
+    btn.classList.toggle('btn-outline', !isActive);
+  });
+  var container = el('trendingData');
+  container.innerHTML = '<div class="loading"><div class="spinner"></div> Loading...</div>';
+  try {
+    var data = await api('/market/trending');
+    var list = data[tab] || [];
+    if (!list.length) {
+      container.innerHTML = '<p class="empty-state">No data available.</p>';
+      return;
+    }
+    container.innerHTML = list.map(function(item) {
+      var badge = (item.changePercent || 0) > 0 ? 'badge-bullish' : (item.changePercent || 0) < 0 ? 'badge-bearish' : 'badge-neutral';
+      var pct = item.changePercent != null ? (item.changePercent >= 0 ? '+' : '') + item.changePercent.toFixed(2) + '%' : '—';
+      return '<div class="stock-card"><div class="stock-card-header"><span class="stock-symbol">' + item.symbol + '</span><span class="badge-badge ' + badge + '">' + pct + '</span></div><div class="stock-card-body"><div class="stock-name">' + (item.name || item.symbol) + '</div><div class="stock-price">₹' + (item.ltp != null ? item.ltp.toFixed(2) : '—') + '</div></div></div>';
+    }).join('');
+  } catch (err) {
+    container.innerHTML = '<p class="empty-state">Failed to load ' + tab + ' data.</p>';
+  }
+}
+
+// ===== CANDLESTICK BACKGROUND =====
+function buildCandlestickBg() {
+  var container = el('candlestickBg');
+  if (!container) return;
+  var colors = ['#00e676', '#ff1744', '#00b0ff', '#ffd600', '#dce5f5'];
+  for (var i = 0; i < 25; i++) {
+    var candle = document.createElement('div');
+    candle.className = 'candle';
+    var isBullish = Math.random() > 0.45;
+    var height = 20 + Math.random() * 120;
+    candle.style.cssText = 'left:' + (Math.random() * 100) + '%;height:' + height + 'px;background:' + (isBullish ? 'var(--green)' : 'var(--red)') + ';animation-duration:' + (8 + Math.random() * 18) + 's;animation-delay:' + (-Math.random() * 20) + 's;';
+    container.appendChild(candle);
+  }
+}
+
+function scrollToFeatures() {
+  var features = el('featuresSection');
+  if (features) features.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+// ===== INIT =====
+function init() {
+  updateAuthUI();
+  setupUpload();
+  buildCandlestickBg();
+  loadTicker();
+  renderWatchlist();
+  showSection('dashboard');
+  setInterval(loadTicker, 60000);
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', init);
+} else {
+  init();
+}

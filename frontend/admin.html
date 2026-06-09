@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TRADLYS — Admin Panel</title>
+  <link rel="icon" href="assets/favicon.png" />
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    :root {
+      --bg: #0b0e14;
+      --panel: #111621;
+      --panel-2: #161c28;
+      --border: #232b3b;
+      --accent: #00b0ff;
+      --accent-2: #00f0ff;
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+      --good: #00c48c;
+      --bad: #ff4d6d;
+      --warn: #ffb020;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text); font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; }
+    .admin-layout { max-width: 1440px; margin: 0 auto; padding: 18px 22px; }
+    .admin-header { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom: 14px; }
+    .admin-header h1 { margin: 0; font-size: 22px; font-weight: 700; letter-spacing: 0.2px; }
+    .admin-header .subtitle { color: var(--muted); font-size: 12px; margin-top: 2px; }
+    .admin-bar { display:flex; gap: 8px; align-items:center; flex-wrap: wrap; }
+    .btn { border: 1px solid var(--border); background: linear-gradient(180deg, #1a2232, #111621); color: var(--text); padding: 8px 12px; border-radius: 10px; cursor: pointer; font-weight: 600; font-size: 13px; }
+    .btn:hover { border-color: #2f3a4f; }
+    .btn-accent { background: linear-gradient(180deg, #0098db, #007bb8); border-color: #0098db; color: white; }
+    .btn-accent:hover { background: linear-gradient(180deg, #00aee9, #0088cc); }
+    .btn-danger { background: linear-gradient(180deg, #c4254a, #9b1f3f); border-color: #c4254a; color: white; }
+    .btn-sm { padding: 5px 9px; font-size: 12px; border-radius: 9px; }
+    .admin-grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 14px; }
+    .col-12 { grid-column: span 12; }
+    .col-8 { grid-column: span 8; }
+    .col-7 { grid-column: span 7; }
+    .col-6 { grid-column: span 6; }
+    .col-5 { grid-column: span 5; }
+    .col-4 { grid-column: span 4; }
+    .col-3 { grid-column: span 3; }
+    .card { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 14px; box-shadow: 0 10px 30px rgba(0,0,0,0.25); }
+    .card-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
+    .card-header h3 { margin: 0; font-size: 14px; color: #cbd5e1; font-weight: 700; }
+    .muted { color: var(--muted); font-size: 12px; }
+    .metric { font-size: 26px; font-weight: 800; letter-spacing: 0.3px; }
+    .mini { font-size: 13px; color: var(--muted); margin-top: 3px; }
+    .badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 8px; border-radius: 999px; font-size: 11px; font-weight: 700; background: #1d2736; border: 1px solid #243042; color: #e2e8f0; }
+    .dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; background: #7aa7ff; box-shadow: 0 0 0 rgba(122,167,255,0.4); }
+    .dot.ok { background: var(--good); box-shadow: 0 0 0 rgba(0,196,140,0.4); }
+    .dot.bad { background: var(--bad); box-shadow: 0 0 0 rgba(255,77,109,0.4); }
+    .dot.warn { background: var(--warn); box-shadow: 0 0 0 rgba(255,176,32,0.4); }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { text-align: left; padding: 9px 8px; font-size: 13px; border-bottom: 1px solid #1d2736; vertical-align: top; }
+    th { color: #7a8aa5; font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .wrap { overflow-wrap: anywhere; word-break: break-word; }
+    .input { background: #0d1219; color: var(--text); border: 1px solid var(--border); border-radius: 10px; padding: 9px 11px; font-size: 13px; outline: none; }
+    .input:focus { border-color: #2b3a52; }
+    select.input { appearance: none; }
+    textarea.input { min-height: 90px; resize: vertical; }
+    .logs { background: #0b0f17; border: 1px solid var(--border); border-radius: 12px; padding: 10px; max-height: 340px; overflow: auto; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace; font-size: 12px; color: #cbd5e1; }
+    .logs pre { margin: 0; white-space: pre-wrap; }
+    .lock-overlay { position: fixed; inset: 0; background: rgba(11,14,20,0.75); backdrop-filter: blur(6px); display: flex; align-items: center; justify-content: center; z-index: 1000; }
+    .lock-card { background: var(--panel); border: 1px solid var(--border); border-radius: 16px; padding: 22px; width: 360px; max-width: 92vw; box-shadow: 0 20px 60px rgba(0,0,0,0.5); }
+    .lock-card h2 { margin: 0 0 6px; font-size: 18px; }
+    .pill-row { display: flex; gap: 8px; flex-wrap: wrap; }
+  </style>
+</head>
+<body>
+  <div class="admin-layout">
+    <div class="admin-header">
+      <div>
+        <h1>◆ TRADLYS Admin</h1>
+        <div class="subtitle">Business Operations Console</div>
+      </div>
+      <div class="admin-bar">
+        <span id="clock" class="badge"></span>
+        <span id="sessionBadge" class="badge">Session</span>
+        <button class="btn btn-danger btn-sm" onclick="lockAdmin()">Lock / Logout</button>
+      </div>
+    </div>
+
+    <div class="admin-grid" id="adminContent">
+      <div class="col-3 card">
+        <div class="card-header"><h3>Total Users</h3></div>
+        <div class="metric" id="mUsers">—</div>
+        <div class="mini">Registered / demo accounts</div>
+      </div>
+      <div class="col-3 card">
+        <div class="card-header"><h3>Total Analyses</h3></div>
+        <div class="metric" id="mReports">—</div>
+        <div class="mini">Text + Image analyses</div>
+      </div>
+      <div class="col-3 card">
+        <div class="card-header"><h3>Today</h3></div>
+        <div class="metric" id="mToday">—</div>
+        <div class="mini">Analyses since midnight</div>
+      </div>
+      <div class="col-3 card">
+        <div class="card-header"><h3>PWA Installs</h3></div>
+        <div class="metric" id="mPwa">—</div>
+        <div class="mini">Tracked install events</div>
+      </div>
+
+      <div class="col-8 card" id="revenueCard">
+        <div class="card-header">
+          <h3>Revenue / Plans</h3>
+          <span class="badge" id="revenueBadge"><span class="dot warn"></span>Loading</span>
+        </div>
+        <div class="muted" id="revenueCardBody">Fetching revenue / dashboard…</div>
+      </div>
+      <div class="col-4 card">
+        <div class="card-header"><h3>Quick Actions</h3></div>
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          <button class="btn btn-accent" onclick="refreshAdmin()">Refresh All Data</button>
+          <button class="btn" onclick="loadAdminLogs()">Refresh Logs</button>
+          <button class="btn" onclick="loadSystemStatus()">Refresh System Status</button>
+        </div>
+      </div>
+
+      <div class="col-7 card">
+        <div class="card-header"><h3>Users</h3><input class="input" id="userSearch" placeholder="Search by email or uid..." oninput="renderUsers()" style="width:220px;" /></div>
+        <div style="overflow:auto">
+          <table>
+            <thead><tr><th>UID</th><th>Email</th><th>Type</th><th>Joined</th></tr></thead>
+            <tbody id="usersBody"><tr><td colspan="4" class="muted">Loading...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="col-5 card">
+        <div class="card-header"><h3>System Logs</h3></div>
+        <div class="logs"><pre id="logsPre">Loading logs...</pre></div>
+      </div>
+
+      <div class="col-12 card">
+        <div class="card-header"><h3>Analysis Reports</h3></div>
+        <div style="overflow:auto">
+          <table>
+            <thead><tr><th>Report ID</th><th>User</th><th>Type</th><th>Market</th><th>Time</th><th>Bias</th></tr></thead>
+            <tbody id="reportsBody"><tr><td colspan="6" class="muted">Loading...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="col-6 card">
+        <div class="card-header"><h3>Market API Status</h3></div>
+        <div id="marketApiStatus" class="muted">Loading...</div>
+      </div>
+      <div class="col-6 card">
+        <div class="card-header"><h3>Gemini API Usage</h3></div>
+        <div id="geminiStatus" class="muted">Loading...</div>
+      </div>
+
+      <div class="col-12 card">
+        <div class="card-header"><h3>Watchlist Activity</h3></div>
+        <div class="logs"><pre id="watchlistLogs">Loading...</pre></div>
+      </div>
+
+      <div class="col-12 card" id="paymentRequestsSection">
+        <div class="card-header">
+          <h3>Payment Requests</h3>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <span class="badge"><span class="dot warn"></span><span id="pendingPayCount">0</span> Pending</span>
+            <button class="btn btn-sm btn-accent" onclick="loadPaymentRequests()">Refresh</button>
+          </div>
+        </div>
+        <div id="paymentRequestsList" style="overflow:auto;">
+          <table>
+            <thead><tr><th>ID</th><th>User</th><th>Plan</th><th>Amount</th><th>UTR</th><th>Timestamp</th><th>Status</th><th>Actions</th></tr></thead>
+            <tbody id="paymentsBody"><tr><td colspan="8" class="muted">Loading...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="col-12 card">
+        <div class="card-header"><h3>Support Tickets</h3><span class="badge">Demo</span></div>
+        <div class="muted">Connect support backend. Sample tickets shown here.</div>
+        <div style="margin-top:8px;" id="ticketsList"><div class="badge">No tickets</div></div>
+      </div>
+
+      <div class="col-12 card">
+        <div class="card-header"><h3>Announcement</h3></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <input id="annInput" class="input" placeholder="Announcement message..." style="flex:1;min-width:220px;" />
+          <button class="btn btn-accent" onclick="postAnnouncement()">Publish</button>
+        </div>
+        <div id="annResult" class="muted" style="margin-top:8px;"></div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:14px;">
+      <div class="card-header"><h3>System</h3></div>
+      <div id="systemBlock" class="muted">Loading system status...</div>
+    </div>
+  </div>
+
+  <div id="passkeyOverlay" class="lock-overlay">
+    <div class="lock-card">
+      <h2>Admin Passkey</h2>
+      <div class="muted">Enter admin passkey to continue.</div>
+      <div style="margin-top:10px;display:flex;gap:8px;">
+        <input id="passkeyInput" class="input" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="6" placeholder="0000" onkeydown="if(event.key==='Enter') submitPasskey()" />
+        <button class="btn btn-accent" onclick="submitPasskey()">Unlock</button>
+      </div>
+      <div id="passkeyError" class="muted" style="color:#ff8a9d;margin-top:8px;min-height:18px;"></div>
+    </div>
+  </div>
+
+  <script>
+    const API_BASE = "http://localhost:5000/api";
+    function authHeaders() { 
+
+      const t = localStorage.getItem('tradlys_token');
+      const h = { 'Content-Type': 'application/json' };
+      if (t) h.Authorization = 'Bearer ' + t;
+      return h;
+    }
+function api(url, opts) {
+  opts = opts || {};
+  var adminHeaders = {};
+  if (isAdminUnlocked()) {
+    adminHeaders['x-admin-session'] = '1';
+    adminHeaders['x-admin-passkey'] = '0000';
+  }
+  return fetch(API_BASE + url, Object.assign({}, opts, { headers: Object.assign({}, authHeaders(), adminHeaders, opts.headers || {}) })).then(async (res) => {
+    const ct = res.headers.get('content-type') || '';
+    const body = ct.includes('application/json') ? await res.json().catch(() => ({})) : {};
+    if (!res.ok) throw new Error(body.message || 'Request failed');
+    return body;
+  });
+}
+    function isAdminUnlocked() { return sessionStorage.getItem('tradlys_admin_unlocked') === '1'; }
+    function lockAdmin() {
+      sessionStorage.removeItem('tradlys_admin_unlocked');
+      window.location.reload();
+    }
+    function submitPasskey() {
+      const v = document.getElementById('passkeyInput').value.trim();
+      if (v === '0000') {
+        sessionStorage.setItem('tradlys_admin_unlocked', '1');
+        document.getElementById('passkeyOverlay').classList.add('hidden');
+        refreshAdmin();
+      } else {
+        document.getElementById('passkeyError').textContent = 'Incorrect passkey.';
+      }
+    }
+    async function refreshAdmin() {
+      if (!isAdminUnlocked()) return;
+      await Promise.all([
+        loadAdminStats(),
+        renderUsers(),
+        loadAdminLogs(),
+        loadSystemStatus(),
+        loadMarketApi(),
+        loadGeminiStatus(),
+        loadWatchlistActivity(),
+        loadPaymentRequests(),
+        loadPaymentsRevenueDashboard()
+      ]);
+    }
+    async function loadAdminStats() {
+      try {
+        const r = await api('/admin/stats');
+        const s = r && r.stats ? r.stats : {};
+        const set = (id, v) => { const e = document.getElementById(id); if (!e) return; e.textContent = v != null ? v : ''; };
+        set('mUsers', s.totalUsers);
+        set('mReports', s.totalAnalyses || s.totalReports);
+        set('mToday', s.todayAnalyses || s.reportsToday);
+        set('mPwa', s.pwaInstalls || 0);
+      } catch (e) {
+        console.warn('admin stats failed', e);
+      }
+    }
+    async function renderUsers() {
+      const tbody = document.getElementById('usersBody');
+      if (!tbody) return;
+      try {
+        const r = await api('/admin/users');
+        let users = (r.users || []).slice(0, 200);
+        const q = (document.getElementById('userSearch').value || '').toLowerCase();
+        if (q) users = users.filter(u => ((u.email || '').toLowerCase().indexOf(q) !== -1) || ((u.uid || '').toLowerCase().indexOf(q) !== -1));
+        if (!users.length) { tbody.innerHTML = '<tr><td colspan="4" class="muted">No users</td></tr>'; return; }
+        tbody.innerHTML = users.map(u => '<tr><td class="wrap">' + (u.uid || '—') + '</td><td class="wrap">' + (u.email || '—') + '</td><td>' + (u.type || 'user') + '</td><td class="muted">' + (u.createdAt ? new Date(u.createdAt).toLocaleString() : '') + '</td></tr>').join('');
+      } catch (e) {
+        tbody.innerHTML = '<tr><td colspan="4" class="muted">Failed to load users</td></tr>';
+      }
+    }
+    async function loadReports() {
+      const tbody = document.getElementById('reportsBody');
+      if (!tbody) return;
+      try {
+        const r = await api('/admin/reports');
+        const list = (r.reports || []).slice(0, 100);
+        if (!list.length) { tbody.innerHTML = '<tr><td colspan="6" class="muted">No reports yet</td></tr>'; return; }
+        tbody.innerHTML = list.map(x => '<tr><td class="wrap">' + (x.reportId || x.id || '—') + '</td><td class="wrap">' + (x.userId || x.userEmail || '—') + '</td><td>' + (x.type || '—') + '</td><td>' + (x.marketName || x.analysisData?.marketName || '—') + '</td><td class="muted">' + (x.createdAt ? new Date(x.createdAt).toLocaleString() : '') + '</td><td><span class="badge">' + (x.analysisData?.overallBias || x.bias || '—') + '</span></td></tr>').join('');
+      } catch (e) {
+        tbody.innerHTML = '<tr><td colspan="6" class="muted">Failed to load reports</td></tr>';
+      }
+    }
+    async function loadAdminLogs() {
+      const pre = document.getElementById('logsPre');
+      if (!pre) return;
+      try {
+        const r = await api('/admin/logs');
+        const logs = (r.logs || []).slice(-300);
+        pre.textContent = logs.map(l => '[' + new Date(l.timestamp || Date.now()).toLocaleString() + '] ' + (l.type || 'log') + ' ' + (l.action || '') + ' ' + (l.userEmail || l.userId || 'system')).join('\n');
+      } catch (e) {
+        pre.textContent = 'Failed to load logs';
+      }
+    }
+    async function loadSystemStatus() {
+      const el2 = document.getElementById('systemBlock');
+      if (!el2) return;
+      try {
+        const r = await api('/admin/system');
+        el2.innerHTML = '<div class="pill-row">' + ['Backend', 'Market API', 'News API', 'Gemini'].map(k => '<span class="badge"><span class="dot ' + (r[k] && r[k].status === 'up' ? 'ok' : r[k] && r[k].status === 'degraded' ? 'warn' : 'bad') + '"></span>' + k + '</span>').join('') + '</div>' +
+          '<div class="muted" style="margin-top:8px;">Uptime: ' + (r.uptime || '—') + ' · Env: ' + (r.environment || '—') + '</div>';
+      } catch (e) {
+        el2.textContent = 'Failed to load system status';
+      }
+    }
+    async function loadMarketApi() {
+      const el2 = document.getElementById('marketApiStatus');
+      if (!el2) return;
+      try { const r = await api('/admin/system'); const s = (r && r.constructor === Object && r['Market API']) || {}; el2.innerHTML = '<span class="badge"><span class="dot ' + (s.status === 'up' ? 'ok' : s.status === 'degraded' ? 'warn' : 'bad') + '"></span>' + (s.status || 'unknown') + '</span>'; } catch (e) { el2.textContent = 'Load failed'; }
+    }
+    async function loadGeminiStatus() {
+      const el2 = document.getElementById('geminiStatus');
+      if (!el2) return;
+      try {
+        const r = await api('/admin/system');
+        const s = (r && r.constructor === Object && r['Gemini']) || r && r.constructor === Object && r['Gemini API'] || {};
+        el2.innerHTML = '<span class="badge"><span class="dot ' + (s.status === 'up' ? 'ok' : s.status === 'degraded' ? 'warn' : s.status === 'quota_exceeded' ? 'warn' : 'bad') + '"></span>' + (s.status || 'unknown') + '</span><div class="muted" style="margin-top:6px;">Model: ' + (s.model || '—') + '</div>';
+      } catch (e) { el2.textContent = 'Load failed'; }
+    }
+    async function loadWatchlistActivity() {
+      const el2 = document.getElementById('watchlistLogs');
+      if (!el2) return;
+      try {
+        const r = await api('/admin/logs');
+        const items = (r.logs || []).filter(l => l.type === 'watchlist').slice(-80);
+        if (!items.length) { el2.textContent = 'No watchlist events yet'; return; }
+        el2.textContent = items.map(l => '[' + new Date(l.timestamp || Date.now()).toLocaleString() + '] ' + (l.action || '') + ' ' + (l.symbol || '') + ' ' + (l.userEmail || l.userId || '')).join('\n');
+      } catch (e) { el2.textContent = 'Load failed'; }
+    }
+    async function postAnnouncement() {
+      const text = (document.getElementById('annInput').value || '').trim();
+      const out = document.getElementById('annResult');
+      if (!text) { out.textContent = 'Enter a message'; return; }
+      try {
+        const r = await api('/admin/announcement', { method: 'POST', body: JSON.stringify({ message: text, createdBy: 'admin' }) });
+        out.textContent = 'Published';
+        document.getElementById('annInput').value = '';
+      } catch (e) { out.textContent = 'Failed: ' + e.message; }
+    }
+    async function loadPaymentRequests() {
+      const tbody = document.getElementById('paymentsBody');
+      const countEl = document.getElementById('pendingPayCount');
+      if (!tbody) return;
+      tbody.innerHTML = '<tr><td colspan="8" class="muted">Loading...</td></tr>';
+      try {
+        const r = await api('/payments/admin/list?status=all');
+        const list = (r && r.payments) || [];
+        if (countEl) countEl.textContent = (r && r.pendingCount) || 0;
+        if (!list.length) { tbody.innerHTML = '<tr><td colspan="8" class="muted">No payment requests</td></tr>'; return; }
+        tbody.innerHTML = list.map(function(p) {
+          const actions = p.status === 'pending' ? '<button class="btn btn-accent btn-sm" onclick="approvePayment(\'' + p.id + '\')">Approve</button> <button class="btn btn-danger btn-sm" onclick="rejectPayment(\'' + p.id + '\')">Reject</button>' : '<span class="badge">' + p.status + '</span>';
+          return '<tr>' +
+            '<td class="wrap">' + (p.id || '—') + '</td>' +
+            '<td class="wrap">' + (p.userEmail || p.userId || '—') + '</td>' +
+            '<td>' + (p.planName || p.planKey || '—') + '</td>' +
+            '<td>' + (p.amountINR != null ? '₹' + p.amountINR : '—') + '</td>' +
+            '<td class="wrap">' + (p.utr || '—') + '</td>' +
+            '<td class="muted">' + (p.createdAt ? new Date(p.createdAt).toLocaleString() : '') + '</td>' +
+            '<td><span class="badge">' + (p.status || '—') + '</span></td>' +
+            '<td style="white-space:nowrap;">' + actions + '</td>' +
+          '</tr>';
+        }).join('');
+      } catch (e) {
+        tbody.innerHTML = '<tr><td colspan="8" class="muted">Failed to load payments</td></tr>';
+      }
+    }
+    async function approvePayment(paymentId) {
+      if (!confirm('Approve payment ' + paymentId + '? Credits will be added automatically.')) return;
+      try {
+        const r = await api('/payments/admin/' + paymentId + '/approve', { method: 'POST', body: JSON.stringify({ reviewedBy: 'admin' }), headers: { 'Content-Type': 'application/json' } });
+        alert('Approved.\n' + (r.message || 'Payment approved.'));
+        loadPaymentRequests();
+        loadAdminStats();
+      } catch (e) {
+        alert('Failed: ' + e.message);
+      }
+    }
+    async function rejectPayment(paymentId) {
+      const reason = prompt('Reject payment ' + paymentId + '.\nEnter reason:');
+      if (reason === null) return;
+      try {
+        const r = await api('/payments/admin/' + paymentId + '/reject', { method: 'POST', body: JSON.stringify({ reason: reason || 'Payment not approved.', reviewedBy: 'admin' }), headers: { 'Content-Type': 'application/json' } });
+        alert('Rejected.\n' + (r.message || 'Payment rejected.'));
+        loadPaymentRequests();
+      } catch (e) {
+        alert('Failed: ' + e.message);
+      }
+    }
+    function clockTick() {
+      const el2 = document.getElementById('clock');
+      if (!el2) return;
+      el2.textContent = new Date().toLocaleTimeString();
+    }
+    function sessionBadge() {
+      const el2 = document.getElementById('sessionBadge');
+      if (!el2) return;
+      el2.className = 'badge';
+      if (isAdminUnlocked()) { el2.innerHTML = '<span class="dot ok"></span>Unlocked'; } else { el2.innerHTML = '<span class="dot bad"></span>Locked'; }
+    }
+    async function loadPaymentsRevenueDashboard() {
+      // Load revenue & dashboard data; do not rely on placeholders.
+      try {
+        // We may not have dedicated revenue/dashboard UI; show results in system block for visibility.
+        const systemEl = document.getElementById('systemBlock');
+        const [revenueRes, dashboardRes] = await Promise.all([
+          api('/payments/admin/revenue'),
+          api('/payments/admin/dashboard')
+        ]);
+
+        const revenue = revenueRes && revenueRes.revenue ? revenueRes.revenue : null;
+        const dash = dashboardRes && dashboardRes.stats ? dashboardRes.stats : null;
+
+        const revenueCard = document.getElementById('revenueCard');
+        const revenueBadge = document.getElementById('revenueBadge');
+        const revenueCardBody = document.getElementById('revenueCardBody');
+
+        if (revenueCardBody) {
+          const parts = [];
+          if (revenue) parts.push('Total ₹' + (revenue.total ?? 0) + ' · Today ₹' + (revenue.todayTotal ?? 0));
+          if (dash) parts.push('Active Users ' + (dash.activeUsers ?? 0) + ' · Total Analyses ' + (dash.totalAnalyses ?? 0) + ' · Pending ' + (dash.pendingPayments ?? 0));
+          if (parts.length) {
+            revenueCardBody.innerHTML = parts.map(x => '<div>' + x + '</div>').join('');
+            if (revenueBadge) {
+              revenueBadge.className = 'badge';
+              revenueBadge.innerHTML = '<span class="dot ok"></span>Live';
+            }
+            // clear system append (optional)
+          } else {
+            revenueCardBody.textContent = 'No revenue/dashboard data';
+            if (revenueBadge) revenueBadge.innerHTML = '<span class="dot warn"></span>Empty';
+          }
+        }
+
+        // Revenue/dashboard UI is in the dedicated card; do not append placeholders elsewhere.
+        if (systemEl && false) {
+          const revenueHtml = revenue
+            ? '<div class="muted" style="margin-top:8px;">Payments Revenue: Total ₹' + (revenue.total ?? 0) + ' · Today ₹' + (revenue.todayTotal ?? 0) + '</div>'
+            : '';
+          const dashHtml = dash
+            ? '<div class="muted" style="margin-top:6px;">Payments Dashboard: Active Users ' + (dash.activeUsers ?? 0) + ' · Total Analyses ' + (dash.totalAnalyses ?? 0) + ' · Pending ' + (dash.pendingPayments ?? 0) + '</div>'
+            : '';
+          systemEl.insertAdjacentHTML('beforeend', revenueHtml + dashHtml);
+        }
+      } catch (e) {
+        // Silent for now if the UI doesn’t have a place; but log for debugging.
+        console.warn('payments revenue/dashboard failed', e);
+      }
+    }
+
+    function initAdmin() {
+      if (!isAdminUnlocked()) {
+        document.getElementById('passkeyOverlay').classList.remove('hidden');
+        return;
+      }
+      document.getElementById('passkeyOverlay').classList.add('hidden');
+      sessionBadge();
+      clockTick();
+      setInterval(clockTick, 1000);
+      refreshAdmin();
+      fetch(API_BASE + '/admin/track', {
+        method: 'POST',
+        headers: Object.assign({ 'Content-Type': 'application/json' }, authHeaders()),
+        body: JSON.stringify({ type: 'admin_login', action: 'admin_unlock', meta: { passkeyUsed: true }, timestamp: new Date().toISOString() })
+      }).catch(function() {});
+    }
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initAdmin); else initAdmin();
+  </script>
+</body>
+</html>

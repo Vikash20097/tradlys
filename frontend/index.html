@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tradlys — AI Trading Decision Assistant</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="manifest" href="manifest.json" />
+  <meta name="theme-color" content="#00b0ff" />
+  <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon.png" />
+  <link rel="apple-touch-icon" href="assets/logo-192.png" />
+  <link rel="stylesheet" href="style.css" />
+    <script>
+    var API = window.location.origin + "/api";
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', function() {
+        navigator.serviceWorker.register('service-worker.js').catch(function(err) {
+          console.log('SW registration failed:', err);
+        });
+      });
+    }
+  </script>
+</head>
+<body>
+  <div id="app">
+    <!-- Animated Background -->
+    <div class="bg-grid"></div>
+    <div class="candlestick-bg" id="candlestickBg"></div>
+
+    <!-- Navigation -->
+    <nav class="nav-bar">
+      <div class="logo">
+        <span class="logo-icon">◆</span>
+        <span class="logo-text">TRADLYS</span>
+      </div>
+      <div class="nav-links">
+        <button class="nav-link active" onclick="showSection('dashboard')">Dashboard</button>
+        <button class="nav-link" onclick="showSection('analyze')">Analyze</button>
+        <button class="nav-link" onclick="showSection('history')">History</button>
+      </div>
+      <div class="nav-actions">
+        <button id="creditsNavBtn" class="credits-nav-pill" onclick="openPlanModal()" title="Credits">
+          <span class="credits-icon">💎</span>
+          <span id="navCredits">5</span>
+        </button>
+        <span id="userPlanBadge" class="plan-badge free">FREE</span>
+        <span id="userInfo" class="user-info"></span>
+        <button id="authBtn" class="btn btn-outline" onclick="handleAuth()">Login</button>
+      </div>
+      <button id="mobileMenuBtn" class="mobile-menu-btn" aria-label="Open menu" onclick="toggleMobileMenu()">
+        <span class="hamburger" aria-hidden="true">☰</span>
+      </button>
+    </nav>
+
+    <nav id="mobileMenu" class="mobile-menu hidden" aria-label="Mobile menu">
+      <button class="mobile-menu-link active" data-section="dashboard" onclick="showSection('dashboard'); closeMobileMenu();">Dashboard</button>
+      <button class="mobile-menu-link" data-section="analyze" onclick="showSection('analyze'); closeMobileMenu();">Analyze</button>
+      <button class="mobile-menu-link" data-section="history" onclick="showSection('history'); closeMobileMenu();">History</button>
+    </nav>
+
+    <!-- Ticker -->
+    <div class="ticker-bar">
+      <div class="ticker-track" id="tickerTrack"></div>
+    </div>
+
+    <!-- Main Content -->
+    <main class="main-content">
+      <!-- Landing Section -->
+      <section id="landingSection" class="section hidden">
+        <div class="hero">
+          <div class="hero-content">
+            <h1 class="hero-title">
+              AI-Powered <span class="gradient-text">Trading Analysis</span>
+            </h1>
+            <p class="hero-subtitle">
+              Upload chart screenshots, ask questions, and get intelligent educational analysis powered by Google Gemini.
+            </p>
+            <div class="hero-cta">
+              <button class="btn btn-primary btn-lg" onclick="showSection('analyze')">
+                Start Analyzing
+              </button>
+              <button class="btn btn-secondary btn-lg" onclick="scrollToFeatures()">Learn More</button>
+            </div>
+            <div class="hero-badge">
+              <span class="badge">Educational AI</span>
+              <span class="badge">No Financial Advice</span>
+              <span class="badge">Probability-Based</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Features -->
+        <div class="features" id="featuresSection">
+          <div class="feature-card">
+            <span class="feature-icon">📊</span>
+            <h3>Chart Analysis</h3>
+            <p>Upload screenshots and get detailed technical analysis of market structure, trends, and key levels.</p>
+          </div>
+          <div class="feature-card">
+            <span class="feature-icon">🤖</span>
+            <h3>AI-Powered Insights</h3>
+            <p>Powered by Google Gemini for deep educational analysis with bullish, bearish, and sideways scenarios.</p>
+          </div>
+          <div class="feature-card">
+            <span class="feature-icon">📈</span>
+            <h3>Live Market Data</h3>
+            <p>Real-time NSE market data with top Indian stocks, indices, and currency in INR.</p>
+          </div>
+          <div class="feature-card">
+            <span class="feature-icon">📝</span>
+            <h3>Analysis History</h3>
+            <p>Save and review your trading analysis reports. Track your learning journey over time.</p>
+          </div>
+          <div class="feature-card">
+            <span class="feature-icon">🔒</span>
+            <h3>Secure & Private</h3>
+            <p>Firebase authentication, secure file uploads, and rate limiting to protect your account.</p>
+          </div>
+          <div class="feature-card">
+            <span class="feature-icon">⚡</span>
+            <h3>Lightning Fast</h3>
+            <p>Optimized Express backend with intelligent caching and efficient API responses.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Dashboard Section -->
+      <section id="dashboardSection" class="section hidden">
+        <div class="dashboard-grid">
+          <div class="card market-card">
+            <div class="card-header">
+              <h3>📈 Live Market - NSE</h3>
+              <span class="live-indicator">● LIVE</span>
+            </div>
+            <div class="card-body">
+              <div id="marketData" class="market-list">
+                <div class="loading"><div class="spinner"></div></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card news-card">
+            <div class="card-header"><h3>📰 Market News</h3></div>
+            <div class="card-body">
+              <div id="newsData" class="news-list"><div class="loading"><div class="spinner"></div></div></div>
+            </div>
+          </div>
+
+          <div class="card quick-card">
+            <div class="card-header"><h3>⚡ Quick Actions</h3></div>
+            <div class="card-body">
+              <div class="quick-actions">
+                <button class="btn btn-primary w-full" onclick="showSection('analyze')">New Analysis</button>
+                <button class="btn btn-secondary w-full" onclick="showSection('history')">View History</button>
+                <button class="btn btn-outline w-full" onclick="refreshMarket()">Refresh Market</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="card watchlist-card">
+            <div class="card-header">
+              <h3>⭐ Watchlist</h3>
+              <button class="btn btn-sm btn-outline" onclick="openWatchlistModal()">+ Add</button>
+            </div>
+            <div class="card-body">
+              <div id="watchlistData" class="watchlist"></div>
+              <div id="watchlistEmpty" class="empty-state">No symbols added yet.</div>
+            </div>
+          </div>
+
+          <div class="card lists-card full-width">
+            <div class="card-header"><h3>🚀 Trending / Gainers / Losers</h3></div>
+            <div class="card-body">
+              <div class="trending-tabs">
+                <button class="btn btn-sm btn-primary trend-tab active" data-trend="trending" onclick="loadTrending('trending')">Trending</button>
+                <button class="btn btn-sm btn-outline trend-tab" data-trend="gainers" onclick="loadTrending('gainers')">Top Gainers</button>
+                <button class="btn btn-sm btn-outline trend-tab" data-trend="losers" onclick="loadTrending('losers')">Top Losers</button>
+              </div>
+              <div id="trendingData" class="trending-grid"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Analysis Section -->
+      <section id="analyzeSection" class="section hidden">
+        <div class="analyze-grid">
+          <!-- Upload Card -->
+          <div class="card card-large">
+            <div class="card-header">
+              <h3>📸 Upload Chart Screenshot</h3>
+            </div>
+            <div class="card-body">
+              <div class="upload-zone" id="uploadZone">
+                <input type="file" id="chartImage" accept="image/jpeg,image/png,image/webp" class="hidden" />
+                <div class="upload-content">
+                  <span class="upload-icon">📤</span>
+                  <p class="upload-text">
+                    <strong>Click or drag to upload</strong>
+                    <br />
+                    <span class="upload-hint">JPG, PNG, WEBP • Max 10MB</span>
+                  </p>
+                  <div class="upload-preview hidden" id="uploadPreview">
+                    <img id="previewImg" alt="Chart preview" />
+                    <button class="btn btn-danger btn-sm" onclick="clearImage()">✕</button>
+                  </div>
+                </div>
+              </div>
+
+              <div class="form-grid">
+                <div class="form-group">
+                  <label for="marketName">Market Name</label>
+                  <input type="text" id="marketName" value="NIFTY 50" placeholder="e.g. NIFTY 50" />
+                </div>
+                <div class="form-group">
+                  <label for="timeframe">Timeframe</label>
+                  <select id="timeframe">
+                    <option value="1m">1 Minute</option>
+                    <option value="5m">5 Minutes</option>
+                    <option value="15m">15 Minutes</option>
+                    <option value="1h" selected>1 Hour</option>
+                    <option value="4h">4 Hours</option>
+                    <option value="1d">Daily</option>
+                    <option value="1w">Weekly</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label for="imageQuestion">Your Question (optional)</label>
+                <textarea id="imageQuestion" rows="3" placeholder="What would you like to know about this chart?"></textarea>
+              </div>
+
+              <div class="form-actions">
+                <button id="analyzeImageBtn" class="btn btn-primary" onclick="analyzeImage()">
+                  🔍 Analyze Chart
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Text Analysis Card -->
+          <div class="card card-large">
+            <div class="card-header">
+              <h3>💬 Text-Based Analysis</h3>
+            </div>
+            <div class="card-body">
+              <div class="form-group">
+                <label for="textQuestion">Your Trading Question</label>
+                <textarea id="textQuestion" rows="6" placeholder="Describe the setup, ask about a strategy, or request market analysis..."></textarea>
+              </div>
+              <div class="form-grid">
+                <div class="form-group">
+                  <label for="textMarketName">Market Name</label>
+                  <input type="text" id="textMarketName" value="NIFTY 50" placeholder="e.g. CRUDEOIL" />
+                </div>
+                <div class="form-group">
+                  <label for="textTimeframe">Timeframe</label>
+                  <select id="textTimeframe">
+                    <option value="1m">1 Minute</option>
+                    <option value="5m">5 Minutes</option>
+                    <option value="15m">15 Minutes</option>
+                    <option value="1h" selected>1 Hour</option>
+                    <option value="4h">4 Hours</option>
+                    <option value="1d" selected>Daily</option>
+                    <option value="1w">Weekly</option>
+                  </select>
+                </div>
+              </div>
+              <div class="form-actions">
+                <button id="analyzeTextBtn" class="btn btn-primary" onclick="analyzeText()">
+                  🧠 Get AI Analysis
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- AI Report Card -->
+          <div id="reportSection" class="card report-card full-width hidden">
+            <div class="report-card-glow"></div>
+            <div class="card-header">
+              <div class="report-header-left">
+                <span class="report-icon">🤖</span>
+                <div>
+                  <h3>AI Analysis Report</h3>
+                  <p class="report-subtitle">Educational analysis only — not financial advice.</p>
+                </div>
+              </div>
+              <div class="report-badges">
+                <span id="reportBias" class="badge-badge"></span>
+                <span id="reportRisk" class="badge-badge"></span>
+                <span id="reportConfidence" class="badge-badge"></span>
+              </div>
+            </div>
+            <div class="card-body">
+              <div class="report-hero">
+                <div class="report-hero-item">
+                  <span class="report-hero-label">Market</span>
+                  <span id="reportMarket" class="report-hero-value"></span>
+                </div>
+                <div class="report-hero-item">
+                  <span class="report-hero-label">Timeframe</span>
+                  <span id="reportTimeframe" class="report-hero-value"></span>
+                </div>
+                <div class="report-hero-item">
+                  <span class="report-hero-label">Trend</span>
+                  <span id="reportTrend" class="report-hero-value"></span>
+                </div>
+              </div>
+
+              <div class="report-section-title">📊 Scenarios</div>
+              <div class="report-scenarios">
+                <div class="scenario-card bullish-card">
+                  <div class="scenario-header">
+                    <span class="scenario-dot bullish-dot"></span>
+                    <strong>Bullish Scenario</strong>
+                  </div>
+                  <p id="reportBullish"></p>
+                </div>
+                <div class="scenario-card bearish-card">
+                  <div class="scenario-header">
+                    <span class="scenario-dot bearish-dot"></span>
+                    <strong>Bearish Scenario</strong>
+                  </div>
+                  <p id="reportBearish"></p>
+                </div>
+                <div class="scenario-card sideways-card">
+                  <div class="scenario-header">
+                    <span class="scenario-dot sideways-dot"></span>
+                    <strong>Sideways Scenario</strong>
+                  </div>
+                  <p id="reportSideways"></p>
+                </div>
+              </div>
+
+              <div class="report-section-title">📍 Key Levels</div>
+              <div class="levels-grid">
+                <div class="level-card bullish-card">
+                  <div class="level-card-header">
+                    <span class="level-icon">🟢</span>
+                    <strong>Support Zones</strong>
+                  </div>
+                  <ul id="reportSupport" class="level-list"></ul>
+                </div>
+                <div class="level-card bearish-card">
+                  <div class="level-card-header">
+                    <span class="level-icon">🔴</span>
+                    <strong>Resistance Zones</strong>
+                  </div>
+                  <ul id="reportResistance" class="level-list"></ul>
+                </div>
+                <div class="level-card target-card">
+                  <div class="level-card-header">
+                    <span class="level-icon">🎯</span>
+                    <strong>Target Zones</strong>
+                  </div>
+                  <ul id="reportTargets" class="level-list"></ul>
+                </div>
+              </div>
+
+              <div class="report-section-title">💡 Entry & Risk</div>
+              <div class="logic-grid-2">
+                <div class="logic-card">
+                  <div class="logic-card-header">📥 Entry Logic</div>
+                  <p id="reportEntry"></p>
+                </div>
+                <div class="logic-card">
+                  <div class="logic-card-header">🛑 Stop Loss Logic</div>
+                  <p id="reportStopLoss"></p>
+                </div>
+                <div class="logic-card invalid-card">
+                  <div class="logic-card-header">⚠️ Invalid Conditions</div>
+                  <p id="reportInvalid"></p>
+                </div>
+              </div>
+
+              <div class="report-section-title">🔑 Key Reasons</div>
+              <ul id="reportReasons" class="reasons-list"></ul>
+
+              <div class="report-section-title">📰 News Impact</div>
+              <div class="news-impact-card">
+                <p id="reportNews"></p>
+              </div>
+
+              <div class="report-section-title">🌐 Live Market Context</div>
+              <div class="market-context-card">
+                <p id="reportContext"></p>
+              </div>
+
+              <div class="report-footer-note">
+                <p>📌 <strong>Final Note:</strong> This is educational analysis only, not financial advice. Always do your own research before trading.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- History Section -->
+      <section id="historySection" class="section hidden">
+        <div class="card">
+          <div class="card-header">
+            <h3>📋 Analysis History</h3>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <input type="text" id="historySearch" placeholder="Search history..." style="padding:6px 12px;width:220px;" oninput="filterHistory()" />
+              <button class="btn btn-secondary btn-sm" onclick="loadHistory()">🔄 Refresh</button>
+            </div>
+          </div>
+          <div class="card-body">
+            <div id="historyList" class="history-list">
+              <div class="loading"><div class="spinner"></div></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+      <p>© 2025 Tradlys — AI Trading Decision Assistant | Educational Analysis Only | Not Financial Advice</p>
+    </footer>
+
+    <!-- PWA Install Popup -->
+    <div id="pwaInstallPopup" class="pwa-popup hidden" role="dialog" aria-modal="true" aria-labelledby="pwaTitle">
+      <div class="pwa-popup-backdrop"></div>
+      <div class="pwa-popup-card">
+        <div class="pwa-popup-header">
+          <span class="pwa-popup-icon">◆</span>
+          <h3 id="pwaTitle">Install Tradlys App</h3>
+        </div>
+        <p class="pwa-popup-body">Get the full trading terminal experience with offline support and instant access.</p>
+        <div class="pwa-popup-actions">
+          <button class="btn btn-primary" onclick="installPwa()">Install App</button>
+          <button class="btn btn-secondary" onclick="deferPwaPrompt()">Later</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Premium Upgrade Modal -->
+    <div id="premiumModal" class="premium-modal hidden" role="dialog" aria-modal="true" aria-labelledby="premiumTitle">
+      <div class="premium-backdrop"></div>
+      <div class="premium-modal-card">
+        <div class="premium-glow"></div>
+        <div class="premium-header">
+          <span class="premium-icon">◆</span>
+          <h2 id="premiumTitle">Your Free Analyses Are Finished</h2>
+          <p class="premium-subtitle">Upgrade to continue unlocking premium AI analysis.</p>
+        </div>
+        <div class="premium-plans">
+          <div class="premium-plan-card" data-plan="starter" onclick="choosePremiumPlan('starter')">
+            <div class="premium-plan-row">
+              <div>
+                <div class="premium-plan-name">Starter</div>
+                <div class="premium-plan-credits">20 Credits</div>
+              </div>
+              <div class="premium-plan-price">₹99</div>
+            </div>
+            <div class="premium-plan-note">Text + Image · Basic Support</div>
+          </div>
+          <div class="premium-plan-card" data-plan="trader" onclick="choosePremiumPlan('trader')">
+            <div class="premium-plan-row">
+              <div>
+                <div class="premium-plan-name">Trader</div>
+                <div class="premium-plan-credits">100 Credits</div>
+              </div>
+              <div class="premium-plan-price">₹299</div>
+            </div>
+            <div class="premium-plan-note">Text + Image · Priority Support</div>
+          </div>
+          <div class="premium-plan-card" data-plan="pro" onclick="choosePremiumPlan('pro')">
+            <div class="premium-plan-row">
+              <div>
+                <div class="premium-plan-name">Pro</div>
+                <div class="premium-plan-credits">Fair Use Unlimited</div>
+              </div>
+              <div class="premium-plan-price">₹799</div>
+            </div>
+            <div class="premium-plan-note">All Markets · Institutional Grade</div>
+          </div>
+        </div>
+        <div class="premium-actions">
+          <button class="btn btn-primary w-full btn-lg" onclick="proceedToUpgrade()">Upgrade Now</button>
+          <button class="btn btn-secondary w-full" onclick="closePremiumModal()">Maybe Later</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Plan/Credits Modal -->
+    <div id="planModal" class="plan-modal hidden" role="dialog" aria-modal="true" aria-labelledby="planModalTitle">
+      <div class="plan-backdrop"></div>
+      <div class="plan-modal-card">
+        <div class="plan-header">
+          <span class="plan-icon">💎</span>
+          <h2 id="planModalTitle">Your Plan & Credits</h2>
+          <p class="plan-subtitle" id="planModalSubtitle">Manage your subscription</p>
+        </div>
+        <div class="plan-body">
+          <div class="plan-row">
+            <span class="plan-label">Current Plan</span>
+            <span class="plan-value" id="planCurrentPlan">FREE</span>
+          </div>
+          <div class="plan-row">
+            <span class="plan-label">Remaining Credits</span>
+            <span class="plan-value" id="planRemainingCredits">—</span>
+          </div>
+          <div class="plan-row">
+            <span class="plan-label">Free Credits Used</span>
+            <span class="plan-value" id="planFreeCreditsUsed">—</span>
+          </div>
+          <div class="plan-row">
+            <span class="plan-label">Payment Status</span>
+            <span class="plan-value" id="planPaymentStatus">—</span>
+          </div>
+        </div>
+        <div class="plan-plans">
+          <h3>Upgrade Plans</h3>
+          <div class="plan-plans-grid">
+            <div class="plan-plan-card" data-plan="starter" onclick="choosePremiumPlan('starter')">
+              <div class="plan-plan-name">Starter</div>
+              <div class="plan-plan-credits">20 Credits</div>
+              <div class="plan-plan-price">₹99</div>
+            </div>
+            <div class="plan-plan-card" data-plan="trader" onclick="choosePremiumPlan('trader')">
+              <div class="plan-plan-name">Trader</div>
+              <div class="plan-plan-credits">100 Credits</div>
+              <div class="plan-plan-price">₹299</div>
+            </div>
+            <div class="plan-plan-card" data-plan="pro" onclick="choosePremiumPlan('pro')">
+              <div class="plan-plan-name">Pro</div>
+              <div class="plan-plan-credits">Fair Use Unlimited</div>
+              <div class="plan-plan-price">₹799</div>
+            </div>
+          </div>
+        </div>
+        <div class="plan-actions">
+          <button class="btn btn-primary w-full btn-lg" id="planUpgradeButton" onclick="proceedToUpgrade()">Upgrade Now</button>
+          <button class="btn btn-secondary w-full" onclick="closePlanModal()">Close</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Premium Upgrade Modal -->
+    <div id="premiumModal" class="premium-modal hidden" role="dialog" aria-modal="true" aria-labelledby="premiumTitle">
+      <div class="premium-backdrop"></div>
+      <div class="premium-modal-card">
+        <div class="premium-glow"></div>
+        <div class="premium-header">
+          <span class="premium-icon">◆</span>
+          <h2 id="premiumTitle">Your Free Analyses Are Finished</h2>
+          <p class="premium-subtitle">Upgrade to continue unlocking premium AI analysis.</p>
+        </div>
+        <div class="premium-plans">
+          <div class="premium-plan-card" data-plan="starter" onclick="choosePremiumPlan('starter')">
+            <div class="premium-plan-row">
+              <div>
+                <div class="premium-plan-name">Starter</div>
+                <div class="premium-plan-credits">20 Credits</div>
+              </div>
+              <div class="premium-plan-price">₹99</div>
+            </div>
+            <div class="premium-plan-note">Text + Image · Basic Support</div>
+          </div>
+          <div class="premium-plan-card" data-plan="trader" onclick="choosePremiumPlan('trader')">
+            <div class="premium-plan-row">
+              <div>
+                <div class="premium-plan-name">Trader</div>
+                <div class="premium-plan-credits">100 Credits</div>
+              </div>
+              <div class="premium-plan-price">₹299</div>
+            </div>
+            <div class="premium-plan-note">Text + Image · Priority Support</div>
+          </div>
+          <div class="premium-plan-card" data-plan="pro" onclick="choosePremiumPlan('pro')">
+            <div class="premium-plan-row">
+              <div>
+                <div class="premium-plan-name">Pro</div>
+                <div class="premium-plan-credits">Fair Use Unlimited</div>
+              </div>
+              <div class="premium-plan-price">₹799</div>
+            </div>
+            <div class="premium-plan-note">All Markets · Institutional Grade</div>
+          </div>
+        </div>
+        <div class="premium-actions">
+          <button class="btn btn-primary w-full btn-lg" onclick="proceedToUpgrade()">Upgrade Now</button>
+          <button class="btn btn-secondary w-full" onclick="closePremiumModal()">Maybe Later</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>

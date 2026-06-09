@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Confirm Payment — TRADLYS</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    :root { --bg: #0b0e14; --panel: #111621; --border: #232b3b; --accent: #f7931a; --accent-2: #ffb84d; --text: #e2e8f0; --muted: #94a3b8; --good: #00c48c; --bad: #ff4d6d; }
+    html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text); font-family: Inter, system-ui, -apple-system, Segoe UI, sans-serif; min-height: 100vh; }
+    .pay-wrap { max-width: 1080px; margin: 0 auto; padding: 22px; display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+    .pay-header { grid-column: span 2; display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
+    .pay-logo { width: 36px; height: 36px; background: linear-gradient(135deg, #f7931a, #ffb84d); border-radius: 10px; display: grid; place-items: center; color: white; font-weight: 800; }
+    .pay-title { font-size: 20px; font-weight: 700; }
+    .back-link { color: var(--accent-2); text-decoration: none; font-size: 13px; font-weight: 600; }
+    .card { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.25); }
+    .card h3 { margin: 0 0 10px; font-size: 15px; font-weight: 700; color: var(--accent-2); }
+    .qr-box { display: grid; place-items: center; padding: 16px; }
+    .qr-placeholder { width: 220px; height: 220px; background: white; border-radius: 12px; display: grid; place-items: center; color: #0b0e14; font-weight: 700; font-size: 14px; border: 2px dashed #0b0e14; }
+    .upi-id { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 14px; text-align: center; color: var(--text); margin-top: 6px; word-break: break-all; }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .form-group { margin-bottom: 10px; }
+    .form-group label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 5px; font-weight: 600; }
+    .input, select, textarea { width: 100%; background: #0d1219; color: var(--text); border: 1px solid var(--border); border-radius: 10px; padding: 10px 11px; font-size: 13px; outline: none; }
+    .input:focus { border-color: #2b3a52; }
+    textarea.input { min-height: 90px; resize: vertical; font-family: inherit; }
+    .upload-zone { border: 1px dashed var(--border); border-radius: 12px; padding: 14px; text-align: center; cursor: pointer; transition: border-color 0.2s; position: relative; overflow: hidden; min-height: 100px; display: grid; place-items: center; }
+    .upload-zone:hover { border-color: #2b3a52; }
+    .upload-zone input[type="file"] { position: absolute; inset: 0; opacity: 0.01; cursor: pointer; }
+    .upload-hint { color: var(--muted); font-size: 12px; }
+    .upload-preview { display: flex; align-items: center; gap: 10px; }
+    .upload-preview img { max-height: 80px; max-width: 120px; border-radius: 8px; border: 1px solid var(--border); }
+    .btn { border: 1px solid var(--border); background: linear-gradient(180deg, #1a2232, #111621); color: var(--text); padding: 10px 14px; border-radius: 10px; cursor: pointer; font-weight: 700; font-size: 14px; min-height: 44px; }
+    .btn:hover { border-color: #2f3a4f; }
+    .btn-primary { background: linear-gradient(180deg, #f7931a, #e8890c); border-color: #f7931a; color: white; }
+    .btn-primary:hover { background: linear-gradient(180deg, #ffa733, #f7931a); }
+    .btn-secondary { background: linear-gradient(180deg, #1d2736, #111621); color: var(--text); border-color: var(--border); }
+    .btn-sm { padding: 6px 10px; min-height: unset; font-size: 12px; border-radius: 9px; }
+    .w-full { width: 100%; }
+    .plan-card { background: #0d1219; border: 1px solid var(--border); border-radius: 10px; padding: 10px; margin-bottom: 8px; cursor: pointer; transition: border-color 0.2s; }
+    .plan-card:hover { border-color: #2b3a52; }
+    .plan-card.active { border-color: var(--accent); background: linear-gradient(180deg, rgba(247,147,26,0.08), rgba(247,147,26,0.03)); }
+    .plan-name { font-weight: 700; font-size: 14px; }
+    .plan-price { color: var(--accent-2); font-weight: 700; }
+    .plan-meta { color: var(--muted); font-size: 12px; }
+    .success-msg { background: rgba(0,196,140,0.1); border: 1px solid rgba(0,196,140,0.3); color: var(--good); padding: 12px; border-radius: 10px; font-size: 13px; margin-top: 10px; }
+    .error-msg { background: rgba(255,77,109,0.1); border: 1px solid rgba(255,77,109,0.3); color: var(--bad); padding: 12px; border-radius: 10px; font-size: 13px; margin-top: 10px; }
+    .toast { position: fixed; top: 16px; left: 50%; transform: translateX(-50%); background: #1a2232; color: var(--text); border: 1px solid var(--border); border-radius: 10px; padding: 10px 14px; font-size: 13px; z-index: 9999; box-shadow: 0 10px 30px rgba(0,0,0,0.3); }
+     .center { text-align: center; }
+     .price-tag { font-size: 22px; font-weight: 800; color: var(--accent-2); }
+     .qr-img { max-width: 220px; width: 100%; height: auto; display: block; margin: 0 auto; }
+    @media (max-width: 720px) {
+      .pay-wrap { grid-template-columns: 1fr; }
+      .pay-header, .row { grid-column: span 1; }
+    }
+  </style>
+</head>
+<body>
+  <div class="pay-wrap">
+    <div class="pay-header">
+      <div class="pay-logo">T</div>
+      <div>
+        <div class="pay-title">TRADLYS</div>
+        <a class="back-link" href="index.html">← Back to Trading Terminal</a>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Step 1 — Select Plan</h3>
+      <div id="planList">
+        <div class="plan-card" data-plan="starter" onclick="selectPlan('starter', this)">
+          <div class="plan-name">Starter</div>
+          <div class="plan-price">₹99</div>
+          <div class="plan-meta">20 credits · Text & Image</div>
+        </div>
+        <div class="plan-card" data-plan="trader" onclick="selectPlan('trader', this)">
+          <div class="plan-name">Trader</div>
+          <div class="plan-price">₹299</div>
+          <div class="plan-meta">100 credits · Text & Image</div>
+        </div>
+        <div class="plan-card" data-plan="pro" onclick="selectPlan('pro', this)">
+          <div class="plan-name">Pro</div>
+          <div class="plan-price">₹799</div>
+          <div class="plan-meta">Fair Use Unlimited</div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:8px; background: #0b0e14;">
+        <div class="form-group">
+          <label>Your Email</label>
+          <input class="input" id="pEmail" readonly />
+        </div>
+      </div>
+
+      <h3 style="margin-top:14px;">Step 2 — Pay via UPI</h3>
+      <div class="qr-box">
+        <img src="assets/scaner.jpg" alt="QR Scanner" class="qr-img" />
+      </div>
+      <div class="center">
+        <div class="plan-meta">UPI ID</div>
+        <div class="upi-id">tradlys@okaxis</div>
+        <div class="plan-meta" style="margin-top:10px;">Amount to Pay</div>
+        <div class="price-tag" id="payAmount">₹99</div>
+        <div class="plan-meta" id="payPlanName">Starter Plan</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Step 3 — Confirm Payment</h3>
+      <div class="form-group">
+        <label>Full Name</label>
+        <input class="input" id="pName" placeholder="As per UPI account" />
+      </div>
+      <div class="form-group">
+        <label>UTR Number</label>
+        <input class="input" id="pUtr" placeholder="12-digit UTR / Txn ID" />
+      </div>
+      <div class="form-group">
+        <label>Payment Screenshot</label>
+        <div class="upload-zone" id="payUploadZone">
+          <input type="file" id="pScreenshot" accept="image/jpeg,image/png,image/webp" />
+          <div id="payPreview" class="upload-preview" style="display:none;">
+            <img id="payPreviewImg" alt="payment" />
+            <button class="btn btn-sm btn-secondary" onclick="clearPayUpload()">✕</button>
+          </div>
+          <div id="payDefault">
+            <div style="font-weight:700;font-size:13px;">Click to upload screenshot</div>
+            <div class="upload-hint">JPG, PNG, WEBP · Max 5MB</div>
+          </div>
+        </div>
+      </div>
+      <button class="btn btn-primary w-full" id="submitPayBtn" onclick="submitPayment()">Submit Payment Request</button>
+      <div id="payResult"></div>
+      <div id="pendingProgress" style="margin-top:14px; display:none;" class="card">
+        <div class="plan-name">⏳ Request Submitted</div>
+        <div style="margin-top:8px;" class="plan-meta">Your request is pending admin approval. You'll get credits within minutes.</div>
+        <div style="margin-top:10px; font-size: 12px; color: var(--muted);">Payment ID: <span id="payTraceId"></span></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    var selectedPlan = null;
+    var state = {
+      token: localStorage.getItem('tradlys_token') || null,
+      user: JSON.parse(localStorage.getItem('tradlys_user') || 'null')
+    };
+    var API = "http://localhost:5000/api";
+
+    function authHeaders() {
+      var t = localStorage.getItem('tradlys_token');
+      var h = { 'Content-Type': 'application/json' };
+      if (t) h.Authorization = 'Bearer ' + t;
+      return h;
+    }
+    function api(url, opts) {
+      opts = opts || {};
+      return fetch(API + url, Object.assign({}, opts, { headers: Object.assign({}, authHeaders(), opts.headers || {}) })).then(async (res) => {
+        const ct = res.headers.get('content-type') || '';
+        const body = ct.includes('application/json') ? await res.json().catch(() => ({})) : {};
+        if (!res.ok) { var err = new Error(body.message || 'Failed'); err.status = res.status; err.body = body; throw err; }
+        return body;
+      });
+    }
+
+    function selectPlan(key, el2) {
+      selectedPlan = key;
+      qsa('.plan-card').forEach(function(c){ c.classList.remove('active'); });
+      el2.classList.add('active');
+      const planInfo = { starter: '₹99', trader: '₹299', pro: '₹799' };
+      qs('#payAmount').textContent = planInfo[key] || '₹99';
+      qs('#payPlanName').textContent = key.charAt(0).toUpperCase() + key.slice(1) + ' Plan';
+    }
+    function qs(s) { return document.querySelector(s); }
+    function qsa(s) { return document.querySelectorAll(s); }
+    function showToast(msg, type) {
+      var t = document.createElement('div');
+      t.className = 'toast toast-' + (type || 'info');
+      t.textContent = msg;
+      document.body.appendChild(t);
+      setTimeout(function(){ t.style.opacity = '0'; t.style.transition = 'opacity 0.4s'; }, 3000);
+      setTimeout(function(){ t.remove(); }, 3500);
+    }
+
+    document.getElementById('pScreenshot').addEventListener('change', function(e) {
+      var file = e.target.files[0];
+      if (!file) return;
+      var reader = new FileReader();
+      reader.onload = function(ev) {
+        qs('#payPreviewImg').src = ev.target.result;
+        qs('#payPreview').style.display = 'flex';
+        qs('#payDefault').style.display = 'none';
+      };
+      reader.readAsDataURL(file);
+    });
+
+    function clearPayUpload() {
+      qs('#pScreenshot').value = '';
+      qs('#payPreview').style.display = 'none';
+      qs('#payDefault').style.display = 'block';
+    }
+
+    async function submitPayment() {
+      if (!selectedPlan) { showToast('Select a plan first', 'error'); return; }
+      var errEl = document.getElementById('payResult');
+      errEl.innerHTML = '';
+      var btn = document.getElementById('submitPayBtn');
+      btn.disabled = true;
+      btn.textContent = 'Submitting...';
+      try {
+        var formData = new FormData();
+        formData.append('plan', selectedPlan);
+        formData.append('fullName', document.getElementById('pName').value || '');
+        formData.append('utr', document.getElementById('pUtr').value || '');
+        var screenshotFile = document.getElementById('pScreenshot').files[0];
+        if (screenshotFile) formData.append('screenshot', screenshotFile);
+        var res = await fetch(API + '/payments/request', {
+          method: 'POST',
+          headers: {
+            'Authorization': 'Bearer ' + (localStorage.getItem('tradlys_token') || '')
+          },
+          body: formData
+        });
+        var data = await res.json();
+        if (!res.ok) {
+          errEl.innerHTML = '<div class="error-msg">' + (data.message || 'Failed') + '</div>';
+          btn.disabled = false;
+          btn.textContent = 'Submit Payment Request';
+          return;
+        }
+        errEl.innerHTML = '<div class="success-msg"><strong>Payment Request Submitted Successfully</strong><div style="margin-top:6px; font-size:12px;">' +
+          '<div>Plan: <strong>' + (selectedPlan ? selectedPlan.charAt(0).toUpperCase() + selectedPlan.slice(1) : '—') + '</strong></div>' +
+          '<div>UTR: <strong>' + (document.getElementById('pUtr').value || '—') + '</strong></div>' +
+          '<div>Request ID: <strong>' + (data.paymentId || '—') + '</strong></div>' +
+          '</div></div>';
+        if (document.getElementById('pendingProgress')) document.getElementById('pendingProgress').style.display = 'block';
+        if (data.paymentId) document.getElementById('payTraceId').textContent = data.paymentId;
+        btn.textContent = 'Submitted ✓';
+        document.getElementById('pUtr').value = '';
+        clearPayUpload();
+        document.getElementById('pName').value = '';
+      } catch (e) {
+        errEl.innerHTML = '<div class="error-msg">' + (e.message || 'Network error') + '</div>';
+        btn.disabled = false;
+        btn.textContent = 'Submit Payment Request';
+      }
+    }
+
+    (async function() {
+      var emailEl = document.getElementById('pEmail');
+      var token = localStorage.getItem('tradlys_token');
+      var stored = localStorage.getItem('tradlys_user');
+      if (token && stored) {
+        try { emailEl.value = JSON.parse(stored).email || ''; } catch (e) { emailEl.value = ''; }
+      } else {
+        emailEl.value = '';
+        emailEl.placeholder = 'Login to auto-fill';
+      }
+
+      var params = new URLSearchParams(window.location.search);
+      var planParam = params.get('plan');
+      if (planParam) {
+        var validPlans = ['starter', 'trader', 'pro'];
+        var planKey = String(planParam).toLowerCase().trim();
+        if (validPlans.indexOf(planKey) !== -1) {
+          selectedPlan = planKey;
+          var planInfo = { starter: '₹99', trader: '₹299', pro: '₹799' };
+          qs('#payAmount').textContent = planInfo[planKey] || '₹99';
+          qs('#payPlanName').textContent = planKey.charAt(0).toUpperCase() + planKey.slice(1) + ' Plan';
+          qsa('.plan-card').forEach(function(c){
+            if (c.getAttribute('data-plan') === planKey) c.classList.add('active');
+          });
+        }
+      }
+    })();
+  </script>
+</body>
+</html>

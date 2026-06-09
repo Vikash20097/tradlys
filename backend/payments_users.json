@@ -1,0 +1,12 @@
+{
+  "demo_token_1780982216179": {
+    "email": "user_demo_tok@tradlys.com",
+    "plan": "free",
+    "credits": 3,
+    "totalCreditsPurchased": 0,
+    "totalAnalyses": 2,
+    "createdAt": "2026-06-09T05:16:56.194Z",
+    "lastAnalysis": "2026-06-09T06:05:06.733Z",
+    "emailVerified": false
+  }
+}
