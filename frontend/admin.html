@@ -78,7 +78,7 @@
       <div class="admin-bar">
         <span id="clock" class="badge"></span>
         <span id="sessionBadge" class="badge">Session</span>
-        <button class="btn btn-danger btn-sm" onclick="lockAdmin()">Lock / Logout</button>
+        <button class="btn btn-danger btn-sm" data-action="lock-admin">Lock / Logout</button>
       </div>
     </div>
 
@@ -114,14 +114,14 @@
       <div class="col-4 card">
         <div class="card-header"><h3>Quick Actions</h3></div>
         <div style="display:flex;flex-direction:column;gap:8px;">
-          <button class="btn btn-accent" onclick="refreshAdmin()">Refresh All Data</button>
-          <button class="btn" onclick="loadAdminLogs()">Refresh Logs</button>
-          <button class="btn" onclick="loadSystemStatus()">Refresh System Status</button>
+          <button class="btn btn-accent" data-action="refresh-admin">Refresh All Data</button>
+          <button class="btn" data-action="refresh-logs">Refresh Logs</button>
+          <button class="btn" data-action="refresh-system">Refresh System Status</button>
         </div>
       </div>
 
       <div class="col-7 card">
-        <div class="card-header"><h3>Users</h3><input class="input" id="userSearch" placeholder="Search by email or uid..." oninput="renderUsers()" style="width:220px;" /></div>
+        <div class="card-header"><h3>Users</h3>        <input class="input" id="userSearch" placeholder="Search by email or uid..." style="width:220px;" /></div>
         <div style="overflow:auto">
           <table>
             <thead><tr><th>UID</th><th>Email</th><th>Type</th><th>Joined</th></tr></thead>
@@ -163,7 +163,7 @@
           <h3>Payment Requests</h3>
           <div style="display:flex;gap:8px;align-items:center;">
             <span class="badge"><span class="dot warn"></span><span id="pendingPayCount">0</span> Pending</span>
-            <button class="btn btn-sm btn-accent" onclick="loadPaymentRequests()">Refresh</button>
+            <button class="btn btn-sm btn-accent" data-action="refresh-payments">Refresh</button>
           </div>
         </div>
         <div id="paymentRequestsList" style="overflow:auto;">
@@ -184,7 +184,7 @@
         <div class="card-header"><h3>Announcement</h3></div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;">
           <input id="annInput" class="input" placeholder="Announcement message..." style="flex:1;min-width:220px;" />
-          <button class="btn btn-accent" onclick="postAnnouncement()">Publish</button>
+          <button class="btn btn-accent" data-action="post-announcement">Publish</button>
         </div>
         <div id="annResult" class="muted" style="margin-top:8px;"></div>
       </div>
@@ -202,14 +202,14 @@
       <div class="muted">Enter admin passkey to continue.</div>
       <div style="margin-top:10px;display:flex;gap:8px;">
         <input id="passkeyInput" class="input" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="6" placeholder="0000" onkeydown="if(event.key==='Enter') submitPasskey()" />
-        <button class="btn btn-accent" onclick="submitPasskey()">Unlock</button>
+        <button class="btn btn-accent" data-action="submit-passkey">Unlock</button>
       </div>
       <div id="passkeyError" class="muted" style="color:#ff8a9d;margin-top:8px;min-height:18px;"></div>
     </div>
   </div>
 
   <script>
-    const API_BASE = "http://localhost:5000/api";
+    const API_BASE = window.location.origin + "/api";
     function authHeaders() { 
 
       const t = localStorage.getItem('tradlys_token');
@@ -366,7 +366,7 @@ function api(url, opts) {
         if (countEl) countEl.textContent = (r && r.pendingCount) || 0;
         if (!list.length) { tbody.innerHTML = '<tr><td colspan="8" class="muted">No payment requests</td></tr>'; return; }
         tbody.innerHTML = list.map(function(p) {
-          const actions = p.status === 'pending' ? '<button class="btn btn-accent btn-sm" onclick="approvePayment(\'' + p.id + '\')">Approve</button> <button class="btn btn-danger btn-sm" onclick="rejectPayment(\'' + p.id + '\')">Reject</button>' : '<span class="badge">' + p.status + '</span>';
+          return '<button class="btn btn-accent btn-sm" data-approve="' + p.id + '">Approve</button> <button class="btn btn-danger btn-sm" data-reject="' + p.id + '">Reject</button>' : '<span class="badge">' + p.status + '</span>';
           return '<tr>' +
             '<td class="wrap">' + (p.id || '—') + '</td>' +
             '<td class="wrap">' + (p.userEmail || p.userId || '—') + '</td>' +
@@ -480,6 +480,53 @@ function api(url, opts) {
         headers: Object.assign({ 'Content-Type': 'application/json' }, authHeaders()),
         body: JSON.stringify({ type: 'admin_login', action: 'admin_unlock', meta: { passkeyUsed: true }, timestamp: new Date().toISOString() })
       }).catch(function() {});
+    }
+    function renderPaymentRows() { ... }
+    function initAdmin() {
+      document.getElementById('passkeyOverlay').classList.add('hidden');
+      sessionBadge();
+      clockTick();
+      setInterval(clockTick, 1000);
+      refreshAdmin();
+      bindAdminActions();
+      fetch(API_BASE + '/admin/track', {
+        method: 'POST',
+        headers: Object.assign({ 'Content-Type': 'application/json' }, authHeaders()),
+        body: JSON.stringify({ type: 'admin_login', action: 'admin_unlock', meta: { passkeyUsed: true }, timestamp: new Date().toISOString() })
+      }).catch(function() {});
+    }
+    function bindAdminActions() {
+      document.querySelectorAll('[data-action="lock-admin"]').forEach(function(btn) {
+        btn.addEventListener('click', function() { lockAdmin(); });
+      });
+      document.querySelectorAll('[data-action="refresh-admin"]').forEach(function(btn) {
+        btn.addEventListener('click', function() { refreshAdmin(); });
+      });
+      document.querySelectorAll('[data-action="refresh-logs"]').forEach(function(btn) {
+        btn.addEventListener('click', function() { loadAdminLogs(); });
+      });
+      document.querySelectorAll('[data-action="refresh-system"]').forEach(function(btn) {
+        btn.addEventListener('click', function() { loadSystemStatus(); });
+      });
+      document.querySelectorAll('[data-action="refresh-payments"]').forEach(function(btn) {
+        btn.addEventListener('click', function() { loadPaymentRequests(); });
+      });
+      document.querySelectorAll('[data-action="post-announcement"]').forEach(function(btn) {
+        btn.addEventListener('click', function() { postAnnouncement(); });
+      });
+      document.querySelectorAll('[data-action="submit-passkey"]').forEach(function(btn) {
+        btn.addEventListener('click', function() { submitPasskey(); });
+      });
+      var userSearch = document.getElementById('userSearch');
+      if (userSearch) {
+        userSearch.addEventListener('input', function() { renderUsers(); });
+      }
+      document.getElementById('paymentsBody').addEventListener('click', function(e) {
+        var approveBtn = e.target.closest('[data-approve]');
+        var rejectBtn = e.target.closest('[data-reject]');
+        if (approveBtn) approvePayment(approveBtn.getAttribute('data-approve'));
+        if (rejectBtn) rejectPayment(rejectBtn.getAttribute('data-reject'));
+      });
     }
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initAdmin); else initAdmin();
   </script>

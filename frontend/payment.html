@@ -70,17 +70,17 @@
     <div class="card">
       <h3>Step 1 — Select Plan</h3>
       <div id="planList">
-        <div class="plan-card" data-plan="starter" onclick="selectPlan('starter', this)">
+         <div class="plan-card" data-plan="starter" data-action="select-plan">
           <div class="plan-name">Starter</div>
           <div class="plan-price">₹99</div>
           <div class="plan-meta">20 credits · Text & Image</div>
         </div>
-        <div class="plan-card" data-plan="trader" onclick="selectPlan('trader', this)">
+         <div class="plan-card" data-plan="trader" data-action="select-plan">
           <div class="plan-name">Trader</div>
           <div class="plan-price">₹299</div>
           <div class="plan-meta">100 credits · Text & Image</div>
         </div>
-        <div class="plan-card" data-plan="pro" onclick="selectPlan('pro', this)">
+         <div class="plan-card" data-plan="pro" data-action="select-plan">
           <div class="plan-name">Pro</div>
           <div class="plan-price">₹799</div>
           <div class="plan-meta">Fair Use Unlimited</div>
@@ -123,7 +123,7 @@
           <input type="file" id="pScreenshot" accept="image/jpeg,image/png,image/webp" />
           <div id="payPreview" class="upload-preview" style="display:none;">
             <img id="payPreviewImg" alt="payment" />
-            <button class="btn btn-sm btn-secondary" onclick="clearPayUpload()">✕</button>
+             <button class="btn btn-sm btn-secondary" data-action="clear-upload">✕</button>
           </div>
           <div id="payDefault">
             <div style="font-weight:700;font-size:13px;">Click to upload screenshot</div>
@@ -131,7 +131,7 @@
           </div>
         </div>
       </div>
-      <button class="btn btn-primary w-full" id="submitPayBtn" onclick="submitPayment()">Submit Payment Request</button>
+       <button class="btn btn-primary w-full" id="submitPayBtn" data-action="submit-payment">Submit Payment Request</button>
       <div id="payResult"></div>
       <div id="pendingProgress" style="margin-top:14px; display:none;" class="card">
         <div class="plan-name">⏳ Request Submitted</div>
@@ -147,7 +147,7 @@
       token: localStorage.getItem('tradlys_token') || null,
       user: JSON.parse(localStorage.getItem('tradlys_user') || 'null')
     };
-    var API = "http://localhost:5000/api";
+    var API = window.location.origin + "/api";
 
     function authHeaders() {
       var t = localStorage.getItem('tradlys_token');
@@ -165,10 +165,10 @@
       });
     }
 
-    function selectPlan(key, el2) {
+    function selectPlan(key, el) {
       selectedPlan = key;
       qsa('.plan-card').forEach(function(c){ c.classList.remove('active'); });
-      el2.classList.add('active');
+      el.classList.add('active');
       const planInfo = { starter: '₹99', trader: '₹299', pro: '₹799' };
       qs('#payAmount').textContent = planInfo[key] || '₹99';
       qs('#payPlanName').textContent = key.charAt(0).toUpperCase() + key.slice(1) + ' Plan';
@@ -200,6 +200,22 @@
       qs('#pScreenshot').value = '';
       qs('#payPreview').style.display = 'none';
       qs('#payDefault').style.display = 'block';
+    }
+
+    function bindPaymentActions() {
+      qsa('#planList .plan-card').forEach(function(card) {
+        card.addEventListener('click', function() {
+          var plan = card.getAttribute('data-plan');
+          if (plan) selectPlan(plan, card);
+        });
+      });
+      qsa('[data-action="clear-upload"]').forEach(function(btn) {
+        btn.addEventListener('click', function() { clearPayUpload(); });
+      });
+      var submitBtn = document.getElementById('submitPayBtn');
+      if (submitBtn) {
+        submitBtn.addEventListener('click', function() { submitPayment(); });
+      }
     }
 
     async function submitPayment() {
@@ -274,6 +290,7 @@
           });
         }
       }
+      bindPaymentActions();
     })();
   </script>
 </body>

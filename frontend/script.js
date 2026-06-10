@@ -6,8 +6,8 @@
 'use strict';
 
 const CONFIG = {
-  API_BASE: "http://localhost:5000/api",
-  API_URL: "http://localhost:5000/api",
+  API_BASE: window.location.origin + "/api",
+  API_URL: window.location.origin + "/api",
   RECONNECT_DELAY: 5000,
   MAX_HISTORY: 100
 };
@@ -272,8 +272,20 @@ function hideAllOverlays() {
 
 function rebindAllButtons() {
   bindNavigation();
+  bindHeroButtons();
+  bindQuickActions();
+  bindWatchlistAdd();
+  bindTrendingTabs();
+  bindAnalyzeButtons();
+  bindHistoryControls();
+  bindHistoryDetailClicks();
+  bindPwaButtons();
+  bindAuthButton();
+  bindMobileMenuButton();
+  bindCreditsButton();
   bindPlanCards();
-  bindUpgradeButtons();
+  bindUpgradeModalButtons();
+  bindWatchlistRemoveButtons();
   console.log('Buttons rebound');
 }
 
@@ -294,6 +306,148 @@ function bindNavigation() {
     });
   });
 }
+function bindHeroButtons() {
+  qsa('[data-goto="analyze"]').forEach(function(btn) {
+    btn.onclick = null;
+    btn.addEventListener('click', function() { showSection('analyze'); });
+  });
+  qsa('[data-scroll="features"]').forEach(function(btn) {
+    btn.onclick = null;
+    btn.addEventListener('click', function() { scrollToFeatures(); });
+  });
+}
+function bindQuickActions() {
+  qsa('.quick-actions [data-section]').forEach(function(btn) {
+    btn.onclick = null;
+    btn.addEventListener('click', function() { showSection(btn.getAttribute('data-section')); });
+  });
+  var refreshBtn = el('refreshMarketBtn');
+  if (refreshBtn) {
+    refreshBtn.onclick = null;
+    refreshBtn.addEventListener('click', function() { refreshMarket(); });
+  }
+}
+function bindWatchlistAdd() {
+  qsa('.btn-sm.btn-outline').forEach(function(btn) {
+    if (/^\+ Add$/i.test(btn.textContent.trim())) {
+      btn.onclick = null;
+      btn.addEventListener('click', function() { openWatchlistModal(); });
+    }
+  });
+}
+function bindTrendingTabs() {
+  qsa('.trend-tab').forEach(function(btn) {
+    btn.onclick = null;
+    btn.addEventListener('click', function() { loadTrending(btn.getAttribute('data-trend')); });
+  });
+}
+function bindAnalyzeButtons() {
+  var imgBtn = el('analyzeImageBtn');
+  if (imgBtn) {
+    imgBtn.onclick = null;
+    imgBtn.addEventListener('click', analyzeImage);
+  }
+  var txtBtn = el('analyzeTextBtn');
+  if (txtBtn) {
+    txtBtn.onclick = null;
+    txtBtn.addEventListener('click', analyzeText);
+  }
+  var clearBtn = qs('#uploadPreview .btn-danger');
+  if (clearBtn) {
+    clearBtn.onclick = null;
+    clearBtn.addEventListener('click', clearImage);
+  }
+}
+function bindHistoryDetailClicks() {
+  var list = el('historyList');
+  if (list && !list.getAttribute('data-history-bound')) {
+    list.setAttribute('data-history-bound', 'true');
+    list.addEventListener('click', function(e) {
+      var item = e.target.closest('.history-item');
+      if (item) {
+        var reportId = item.getAttribute('data-history-id');
+        if (reportId) loadHistoryDetail(reportId);
+      }
+    });
+  }
+}
+function bindHistoryControls() {
+  qsa('.btn-secondary').forEach(function(btn) {
+    if (/Refresh/.test(btn.textContent.trim())) {
+      btn.onclick = null;
+      btn.addEventListener('click', function() { loadHistory(); });
+    }
+  });
+  var searchInput = el('historySearch');
+  if (searchInput && !searchInput.getAttribute('data-bound')) {
+    searchInput.setAttribute('data-bound', 'true');
+    searchInput.addEventListener('input', function() { filterHistory(); });
+  }
+}
+function bindPwaButtons() {
+  var installBtn = el('pwaInstallBtn');
+  if (installBtn) {
+    installBtn.onclick = null;
+    installBtn.addEventListener('click', function() { installPwa(); });
+  }
+  var laterBtn = el('pwaLaterBtn');
+  if (laterBtn) {
+    laterBtn.onclick = null;
+    laterBtn.addEventListener('click', function() { deferPwaPrompt(); });
+  }
+}
+function bindAuthButton() {
+  var authBtn = el('authBtn');
+  if (authBtn) {
+    authBtn.onclick = null;
+    authBtn.addEventListener('click', function() { handleAuth(); });
+  }
+}
+function bindMobileMenuButton() {
+  var menuBtn = el('mobileMenuBtn');
+  if (menuBtn) {
+    menuBtn.onclick = null;
+    menuBtn.addEventListener('click', function() { toggleMobileMenu(); });
+  }
+}
+function bindCreditsButton() {
+  var creditsBtn = el('creditsNavBtn');
+  if (creditsBtn) {
+    creditsBtn.onclick = null;
+    creditsBtn.addEventListener('click', function() { openPlanModal(); });
+  }
+}
+function bindPlanCards() {
+  qsa('.premium-plan-card, .plan-plan-card').forEach(function(card) {
+    card.onclick = null;
+    card.addEventListener('click', function() {
+      var plan = card.getAttribute('data-plan');
+      if (plan) {
+        state.selectedPremiumPlan = plan;
+        qsa('.premium-plan-card, .plan-plan-card').forEach(function(c) { c.classList.remove('active'); });
+        card.classList.add('active');
+        console.log('Plan selected:', plan);
+      }
+    });
+  });
+}
+function bindUpgradeModalButtons() {
+  qsa('#premiumModal .premium-actions button, #planModal .plan-actions button').forEach(function(btn) {
+    btn.onclick = null;
+    if (/Upgrade Now|Upgrade/.test(btn.textContent || '')) {
+      btn.addEventListener('click', function() {
+        console.log('Upgrade clicked');
+        window.proceedToUpgrade && window.proceedToUpgrade();
+      });
+    } else if (/Maybe Later|Close/.test(btn.textContent || '')) {
+      btn.addEventListener('click', function() {
+        var inPlan = btn.closest && btn.closest('#planModal');
+        if (inPlan) closePlanModal();
+        else closePremiumModal();
+      });
+    }
+  });
+}
 
 function bindPlanCards() {
   document.querySelectorAll('.premium-plan-card').forEach(function(card) {
@@ -310,8 +464,19 @@ function bindPlanCards() {
   });
 }
 
-function bindUpgradeButtons() {
-  var upgradeBtn = document.getElementById('upgradeBtnId');
+function bindWatchlistRemoveButtons() {
+  var list = el('watchlistData');
+  if (list && !list.getAttribute('data-watchlist-bound')) {
+    list.setAttribute('data-watchlist-bound', 'true');
+    list.addEventListener('click', function(e) {
+      var btn = e.target.closest('[data-remove-symbol]');
+      if (btn) {
+        var symbol = btn.getAttribute('data-remove-symbol');
+        if (symbol) removeWatchlist(symbol);
+      }
+    });
+  }
+}
   // Upgrade Now buttons across all modals
   document.querySelectorAll('[id*="upgrade"], [id*="Upgrade"], .premium-actions, .btn-primary').forEach(function(btn) {
     if (btn.textContent.trim().indexOf('Upgrade Now') !== -1 || btn.textContent.trim().indexOf('Upgrade') !== -1) {
@@ -725,7 +890,7 @@ function filterHistory() {
   }
   container.innerHTML = filtered.map(function(r) {
     var reportId = r.reportId || r.id;
-    return '<div class="history-item" onclick="loadHistoryDetail(\'' + reportId + '\')">' +
+    return '<div class="history-item" data-history-id="' + reportId + '">' +
       '<span class="history-type-icon">' + (r.type === 'image' ? '📸' : '💬') + '</span>' +
       '<div class="history-info">' +
         '<div class="history-market">' + (r.analysisData && r.analysisData.marketName ? r.analysisData.marketName : 'Unknown') + '</div>' +
@@ -836,7 +1001,7 @@ function renderWatchlist() {
   container.innerHTML = list.map(function(item) {
     var changeClass = (item.changePercent || 0) >= 0 ? 'bullish' : 'bearish';
     var changeText = item.changePercent != null ? (item.changePercent >= 0 ? '+' : '') + item.changePercent.toFixed(2) + '%' : '—';
-    return '<div class="watchlist-item"><span class="symbol">' + (item.symbol || '—') + '</span><div style="display:flex;gap:8px;align-items:center;"><span class="change ' + changeClass + '">' + changeText + '</span><button class="btn btn-sm btn-danger" onclick="removeWatchlist(\'' + (item.symbol || '') + '\')" aria-label="Remove ' + (item.symbol || '') + '">✕</button></div></div>';
+    return '<div class="watchlist-item"><span class="symbol">' + (item.symbol || '—') + '</span><div style="display:flex;gap:8px;align-items:center;"><span class="change ' + changeClass + '">' + changeText + '</span><button class="btn btn-sm btn-danger" data-remove-symbol="' + (item.symbol || '') + '" aria-label="Remove ' + (item.symbol || '') + '">✕</button></div></div>';
   }).join('');
 }
 
@@ -1002,9 +1167,7 @@ function openAdminHidden() {
 
 function handleHash() {
   if (window.location.hash === '#admin') {
-    if (!/^(http|https):\/\//i.test(window.location.href) || window.location.href.startsWith('http://localhost')) {
-      window.location.href = 'admin.html';
-    }
+    window.location.href = 'admin.html';
   }
 }
 
@@ -1025,8 +1188,9 @@ function init() {
   setupUpload();
   buildCandlestickBg();
   loadTicker();
-  renderWatchlist();
-  setupPwaInstall();
+      renderWatchlist();
+      bindWatchlistRemoveButtons();
+      setupPwaInstall();
   setupAdminShortcuts();
   showSection('dashboard');
   setInterval(loadTicker, 60000);

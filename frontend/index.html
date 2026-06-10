@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -35,28 +35,28 @@
         <span class="logo-text">TRADLYS</span>
       </div>
       <div class="nav-links">
-        <button class="nav-link active" onclick="showSection('dashboard')">Dashboard</button>
-        <button class="nav-link" onclick="showSection('analyze')">Analyze</button>
-        <button class="nav-link" onclick="showSection('history')">History</button>
+        <button class="nav-link active" data-section="dashboard">Dashboard</button>
+        <button class="nav-link" data-section="analyze">Analyze</button>
+        <button class="nav-link" data-section="history">History</button>
       </div>
       <div class="nav-actions">
-        <button id="creditsNavBtn" class="credits-nav-pill" onclick="openPlanModal()" title="Credits">
+        <button id="creditsNavBtn" class="credits-nav-pill" title="Credits">
           <span class="credits-icon">💎</span>
           <span id="navCredits">5</span>
         </button>
         <span id="userPlanBadge" class="plan-badge free">FREE</span>
         <span id="userInfo" class="user-info"></span>
-        <button id="authBtn" class="btn btn-outline" onclick="handleAuth()">Login</button>
+        <button id="authBtn" class="btn btn-outline">Login</button>
       </div>
-      <button id="mobileMenuBtn" class="mobile-menu-btn" aria-label="Open menu" onclick="toggleMobileMenu()">
+      <button id="mobileMenuBtn" class="mobile-menu-btn" aria-label="Open menu">
         <span class="hamburger" aria-hidden="true">☰</span>
       </button>
     </nav>
 
     <nav id="mobileMenu" class="mobile-menu hidden" aria-label="Mobile menu">
-      <button class="mobile-menu-link active" data-section="dashboard" onclick="showSection('dashboard'); closeMobileMenu();">Dashboard</button>
-      <button class="mobile-menu-link" data-section="analyze" onclick="showSection('analyze'); closeMobileMenu();">Analyze</button>
-      <button class="mobile-menu-link" data-section="history" onclick="showSection('history'); closeMobileMenu();">History</button>
+      <button class="mobile-menu-link active" data-section="dashboard">Dashboard</button>
+      <button class="mobile-menu-link" data-section="analyze">Analyze</button>
+      <button class="mobile-menu-link" data-section="history">History</button>
     </nav>
 
     <!-- Ticker -->
@@ -77,10 +77,8 @@
               Upload chart screenshots, ask questions, and get intelligent educational analysis powered by Google Gemini.
             </p>
             <div class="hero-cta">
-              <button class="btn btn-primary btn-lg" onclick="showSection('analyze')">
-                Start Analyzing
-              </button>
-              <button class="btn btn-secondary btn-lg" onclick="scrollToFeatures()">Learn More</button>
+              <button class="btn btn-primary btn-lg" data-goto="analyze">Start Analyzing</button>
+              <button class="btn btn-secondary btn-lg" data-scroll="features">Learn More</button>
             </div>
             <div class="hero-badge">
               <span class="badge">Educational AI</span>
@@ -151,9 +149,9 @@
             <div class="card-header"><h3>⚡ Quick Actions</h3></div>
             <div class="card-body">
               <div class="quick-actions">
-                <button class="btn btn-primary w-full" onclick="showSection('analyze')">New Analysis</button>
-                <button class="btn btn-secondary w-full" onclick="showSection('history')">View History</button>
-                <button class="btn btn-outline w-full" onclick="refreshMarket()">Refresh Market</button>
+              <button class="btn btn-primary w-full" data-section="analyze">New Analysis</button>
+              <button class="btn btn-secondary w-full" data-section="history">View History</button>
+              <button class="btn btn-outline w-full" id="refreshMarketBtn">Refresh Market</button>
               </div>
             </div>
           </div>
@@ -161,7 +159,7 @@
           <div class="card watchlist-card">
             <div class="card-header">
               <h3>⭐ Watchlist</h3>
-              <button class="btn btn-sm btn-outline" onclick="openWatchlistModal()">+ Add</button>
+                  <button class="btn btn-sm btn-outline" id="watchlistAddBtn" data-action="open-watchlist">+ Add</button>
             </div>
             <div class="card-body">
               <div id="watchlistData" class="watchlist"></div>
@@ -173,9 +171,9 @@
             <div class="card-header"><h3>🚀 Trending / Gainers / Losers</h3></div>
             <div class="card-body">
               <div class="trending-tabs">
-                <button class="btn btn-sm btn-primary trend-tab active" data-trend="trending" onclick="loadTrending('trending')">Trending</button>
-                <button class="btn btn-sm btn-outline trend-tab" data-trend="gainers" onclick="loadTrending('gainers')">Top Gainers</button>
-                <button class="btn btn-sm btn-outline trend-tab" data-trend="losers" onclick="loadTrending('losers')">Top Losers</button>
+               <button class="btn btn-sm btn-primary trend-tab active" data-trend="trending" data-action="trend">Trending</button>
+               <button class="btn btn-sm btn-outline trend-tab" data-trend="gainers" data-action="trend">Top Gainers</button>
+               <button class="btn btn-sm btn-outline trend-tab" data-trend="losers" data-action="trend">Top Losers</button>
               </div>
               <div id="trendingData" class="trending-grid"></div>
             </div>
@@ -203,7 +201,7 @@
                   </p>
                   <div class="upload-preview hidden" id="uploadPreview">
                     <img id="previewImg" alt="Chart preview" />
-                    <button class="btn btn-danger btn-sm" onclick="clearImage()">✕</button>
+                    <button class="btn btn-outline w-full" id="clearImageBtn" data-action="clear-image">✕</button>
                   </div>
                 </div>
               </div>
@@ -233,9 +231,7 @@
               </div>
 
               <div class="form-actions">
-                <button id="analyzeImageBtn" class="btn btn-primary" onclick="analyzeImage()">
-                  🔍 Analyze Chart
-                </button>
+                  <button id="analyzeImageBtn" class="btn btn-primary" data-action="analyze-image">🔍 Analyze Chart</button>
               </div>
             </div>
           </div>
@@ -269,9 +265,7 @@
                 </div>
               </div>
               <div class="form-actions">
-                <button id="analyzeTextBtn" class="btn btn-primary" onclick="analyzeText()">
-                  🧠 Get AI Analysis
-                </button>
+                  <button id="analyzeTextBtn" class="btn btn-primary" data-action="analyze-text">🧠 Get AI Analysis</button>
               </div>
             </div>
           </div>
@@ -402,8 +396,8 @@
           <div class="card-header">
             <h3>📋 Analysis History</h3>
             <div style="display:flex;gap:8px;align-items:center;">
-              <input type="text" id="historySearch" placeholder="Search history..." style="padding:6px 12px;width:220px;" oninput="filterHistory()" />
-              <button class="btn btn-secondary btn-sm" onclick="loadHistory()">🔄 Refresh</button>
+               <input type="text" id="historySearch" placeholder="Search history..." style="padding:6px 12px;width:220px;" />
+              <button class="btn btn-secondary btn-sm" id="refreshHistoryBtn">🔄 Refresh</button>
             </div>
           </div>
           <div class="card-body">
@@ -432,8 +426,8 @@
         </div>
         <p class="pwa-popup-body">Get the full trading terminal experience with offline support and instant access.</p>
         <div class="pwa-popup-actions">
-          <button class="btn btn-primary" onclick="installPwa()">Install App</button>
-          <button class="btn btn-secondary" onclick="deferPwaPrompt()">Later</button>
+          <button class="btn btn-primary" id="pwaInstallBtn">Install App</button>
+          <button class="btn btn-secondary" id="pwaLaterBtn">Later</button>
         </div>
       </div>
     </div>
@@ -449,7 +443,7 @@
           <p class="premium-subtitle">Upgrade to continue unlocking premium AI analysis.</p>
         </div>
         <div class="premium-plans">
-          <div class="premium-plan-card" data-plan="starter" onclick="choosePremiumPlan('starter')">
+          <div class="premium-plan-card" data-plan="starter" data-action="choose-plan">
             <div class="premium-plan-row">
               <div>
                 <div class="premium-plan-name">Starter</div>
@@ -459,7 +453,7 @@
             </div>
             <div class="premium-plan-note">Text + Image · Basic Support</div>
           </div>
-          <div class="premium-plan-card" data-plan="trader" onclick="choosePremiumPlan('trader')">
+          <div class="premium-plan-card" data-plan="trader" data-action="choose-plan">
             <div class="premium-plan-row">
               <div>
                 <div class="premium-plan-name">Trader</div>
@@ -469,7 +463,7 @@
             </div>
             <div class="premium-plan-note">Text + Image · Priority Support</div>
           </div>
-          <div class="premium-plan-card" data-plan="pro" onclick="choosePremiumPlan('pro')">
+          <div class="premium-plan-card" data-plan="pro" data-action="choose-plan">
             <div class="premium-plan-row">
               <div>
                 <div class="premium-plan-name">Pro</div>
@@ -480,9 +474,10 @@
             <div class="premium-plan-note">All Markets · Institutional Grade</div>
           </div>
         </div>
-        <div class="premium-actions">
-          <button class="btn btn-primary w-full btn-lg" onclick="proceedToUpgrade()">Upgrade Now</button>
-          <button class="btn btn-secondary w-full" onclick="closePremiumModal()">Maybe Later</button>
+          <div class="premium-actions">
+            <button class="btn btn-primary w-full btn-lg" data-action="upgrade">Upgrade Now</button>
+            <button class="btn btn-secondary w-full" data-action="close-premium">Maybe Later</button>
+          </div>
         </div>
       </div>
     </div>
@@ -517,17 +512,17 @@
         <div class="plan-plans">
           <h3>Upgrade Plans</h3>
           <div class="plan-plans-grid">
-            <div class="plan-plan-card" data-plan="starter" onclick="choosePremiumPlan('starter')">
+            <div class="plan-plan-card" data-plan="starter" data-action="choose-plan">
               <div class="plan-plan-name">Starter</div>
               <div class="plan-plan-credits">20 Credits</div>
               <div class="plan-plan-price">₹99</div>
             </div>
-            <div class="plan-plan-card" data-plan="trader" onclick="choosePremiumPlan('trader')">
+            <div class="plan-plan-card" data-plan="trader" data-action="choose-plan">
               <div class="plan-plan-name">Trader</div>
               <div class="plan-plan-credits">100 Credits</div>
               <div class="plan-plan-price">₹299</div>
             </div>
-            <div class="plan-plan-card" data-plan="pro" onclick="choosePremiumPlan('pro')">
+            <div class="plan-plan-card" data-plan="pro" data-action="choose-plan">
               <div class="plan-plan-name">Pro</div>
               <div class="plan-plan-credits">Fair Use Unlimited</div>
               <div class="plan-plan-price">₹799</div>
@@ -535,8 +530,8 @@
           </div>
         </div>
         <div class="plan-actions">
-          <button class="btn btn-primary w-full btn-lg" id="planUpgradeButton" onclick="proceedToUpgrade()">Upgrade Now</button>
-          <button class="btn btn-secondary w-full" onclick="closePlanModal()">Close</button>
+           <button class="btn btn-primary w-full btn-lg" id="planUpgradeButton" data-action="upgrade">Upgrade Now</button>
+           <button class="btn btn-secondary w-full" data-action="close-plan">Close</button>
         </div>
       </div>
     </div>
@@ -552,7 +547,7 @@
           <p class="premium-subtitle">Upgrade to continue unlocking premium AI analysis.</p>
         </div>
         <div class="premium-plans">
-          <div class="premium-plan-card" data-plan="starter" onclick="choosePremiumPlan('starter')">
+          <div class="premium-plan-card" data-plan="starter" data-action="choose-plan">
             <div class="premium-plan-row">
               <div>
                 <div class="premium-plan-name">Starter</div>
@@ -562,7 +557,7 @@
             </div>
             <div class="premium-plan-note">Text + Image · Basic Support</div>
           </div>
-          <div class="premium-plan-card" data-plan="trader" onclick="choosePremiumPlan('trader')">
+          <div class="premium-plan-card" data-plan="trader" data-action="choose-plan">
             <div class="premium-plan-row">
               <div>
                 <div class="premium-plan-name">Trader</div>
@@ -572,7 +567,7 @@
             </div>
             <div class="premium-plan-note">Text + Image · Priority Support</div>
           </div>
-          <div class="premium-plan-card" data-plan="pro" onclick="choosePremiumPlan('pro')">
+          <div class="premium-plan-card" data-plan="pro" data-action="choose-plan">
             <div class="premium-plan-row">
               <div>
                 <div class="premium-plan-name">Pro</div>
@@ -583,10 +578,10 @@
             <div class="premium-plan-note">All Markets · Institutional Grade</div>
           </div>
         </div>
-        <div class="premium-actions">
-          <button class="btn btn-primary w-full btn-lg" onclick="proceedToUpgrade()">Upgrade Now</button>
-          <button class="btn btn-secondary w-full" onclick="closePremiumModal()">Maybe Later</button>
-        </div>
+      <div class="premium-actions">
+        <button class="btn btn-primary w-full btn-lg" data-action="upgrade">Upgrade Now</button>
+        <button class="btn btn-secondary w-full" data-action="close-premium">Maybe Later</button>
+      </div>
       </div>
     </div>
   </div>
