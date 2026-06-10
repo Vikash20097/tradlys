@@ -477,17 +477,6 @@ function bindWatchlistRemoveButtons() {
     });
   }
 }
-  // Upgrade Now buttons across all modals
-  document.querySelectorAll('[id*="upgrade"], [id*="Upgrade"], .premium-actions, .btn-primary').forEach(function(btn) {
-    if (btn.textContent.trim().indexOf('Upgrade Now') !== -1 || btn.textContent.trim().indexOf('Upgrade') !== -1) {
-      btn.onclick = null;
-      btn.addEventListener('click', function() {
-        console.log('Upgrade clicked');
-        window.proceedToUpgrade && window.proceedToUpgrade();
-      });
-    }
-  });
-}
 
 function handleLoginPrompt() {
   var email = prompt('Enter your email to continue (demo mode):');
@@ -1182,15 +1171,26 @@ function setupAdminShortcuts() {
   if (window.location.hash === '#admin') handleHash();
 }
 
+function setupServiceWorker() {
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function() {
+      navigator.serviceWorker.register('service-worker.js').catch(function(err) {
+        console.log('SW registration failed:', err);
+      });
+    });
+  }
+}
+
 // ===== INIT =====
 function init() {
   updateAuthUI();
+  setupServiceWorker();
   setupUpload();
   buildCandlestickBg();
   loadTicker();
-      renderWatchlist();
-      bindWatchlistRemoveButtons();
-      setupPwaInstall();
+  renderWatchlist();
+  bindWatchlistRemoveButtons();
+  setupPwaInstall();
   setupAdminShortcuts();
   showSection('dashboard');
   setInterval(loadTicker, 60000);
