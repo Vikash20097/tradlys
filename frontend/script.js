@@ -789,22 +789,39 @@ function renderReport(report, target) {
 
 // ===== PWA INSTALL POPUP =====
 function shouldShowPwaPrompt() {
-  if (!state.promptCooldown) return true;
-  var diff = Date.now() - state.promptCooldown;
-  return diff > 7 * 24 * 60 * 60 * 1000;
+  var until = localStorage.getItem('tradlys_install_later_until');
+  if (!until) return true;
+  return Date.now() > Number(until);
 }
 
 function hidePwaPopup() {
   hide('pwaInstallPopup');
 }
 
+function showPwaPopup() {
+  if (!el('pwaInstallPopup')) return;
+  show('pwaInstallPopup');
+  setTimeout(function() {
+    hidePwaPopup();
+  }, 5000);
+}
+
 function setupPwaInstall() {
+  var popup = el('pwaInstallPopup');
+  if (popup) {
+    popup.addEventListener('click', function(e) {
+      if (e.target === popup) {
+        hidePwaPopup();
+      }
+    });
+  }
+
   window.addEventListener('beforeinstallprompt', function(e) {
     e.preventDefault();
     state.deferredPrompt = e;
     if (shouldShowPwaPrompt()) {
       setTimeout(function() {
-        show('pwaInstallPopup');
+        showPwaPopup();
       }, 1500);
     }
   });
@@ -812,7 +829,6 @@ function setupPwaInstall() {
   window.addEventListener('appinstalled', function() {
     state.deferredPrompt = null;
     hidePwaPopup();
-    localStorage.removeItem('tradlys_prompt_cooldown');
     showToast('Tradlys installed successfully!', 'success');
     ;(api('/admin/track', { method: 'POST', body: JSON.stringify({ type: 'pwa_install', userEmail: state.user ? state.user.email : null, action: 'installed', meta: {}, timestamp: new Date().toISOString() }) }).catch(function() {}));
   });
@@ -820,7 +836,10 @@ function setupPwaInstall() {
 
 function installPwa() {
   if (!state.deferredPrompt) {
-    showToast('Install not available right now.', 'info');
+    showToast('Install option is not available yet', 'info');
+    setTimeout(function() {
+      hidePwaPopup();
+    }, 2000);
     return;
   }
   state.deferredPrompt.prompt();
@@ -828,7 +847,6 @@ function installPwa() {
     if (choiceResult.outcome === 'accepted') {
       showToast('Installing Tradlys...', 'success');
     } else {
-      localStorage.setItem('tradlys_prompt_cooldown', String(Date.now()));
       showToast('Install dismissed.', 'info');
     }
     state.deferredPrompt = null;
@@ -837,7 +855,7 @@ function installPwa() {
 }
 
 function deferPwaPrompt() {
-  localStorage.setItem('tradlys_prompt_cooldown', String(Date.now()));
+  localStorage.setItem('tradlys_install_later_until', String(Date.now() + 7 * 24 * 60 * 60 * 1000));
   hidePwaPopup();
 }
 
