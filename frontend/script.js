@@ -1201,17 +1201,138 @@ function setupServiceWorker() {
 
 // ===== INIT =====
 function init() {
+  console.log('TRADLYS init started');
   updateAuthUI();
   setupServiceWorker();
   setupUpload();
   buildCandlestickBg();
   loadTicker();
   renderWatchlist();
-  bindWatchlistRemoveButtons();
+  bindNavigation();
+  bindAuthButtons();
+  bindQuickActions();
+  bindPwaInstallButtons();
+  bindUpgradeButtons();
+  bindWatchlistButtons();
+  bindHistoryControls();
+  bindPaymentButtonsIfExists();
   setupPwaInstall();
   setupAdminShortcuts();
   showSection('dashboard');
   setInterval(loadTicker, 60000);
+  bindGlobalClickDelegation();
+  console.log('Init complete');
+}
+
+function bindAuthButtons() {
+  bindAuthButton();
+  var authBtn = el('authBtn');
+  if (authBtn && !authBtn.getAttribute('data-action')) {
+    authBtn.setAttribute('data-action', 'login');
+  }
+}
+function bindPwaInstallButtons() {
+  bindPwaButtons();
+  var installBtn = el('pwaInstallBtn');
+  if (installBtn && !installBtn.getAttribute('data-action')) {
+    installBtn.setAttribute('data-action', 'install-app');
+  }
+  var laterBtn = el('pwaLaterBtn');
+  if (laterBtn && !laterBtn.getAttribute('data-action')) {
+    laterBtn.setAttribute('data-action', 'later-install');
+  }
+}
+function bindUpgradeButtons() {
+  bindUpgradeModalButtons();
+  qsa('[data-action="upgrade"]').forEach(function(btn) {
+    if (!btn.hasListenerBound) {
+      btn.hasListenerBound = true;
+      btn.addEventListener('click', function() { proceedToUpgrade(); });
+    }
+  });
+}
+function bindWatchlistButtons() {
+  bindWatchlistAdd();
+  bindWatchlistRemoveButtons();
+  var addBtn = el('watchlistAddBtn');
+  if (addBtn && !addBtn.getAttribute('data-action')) {
+    addBtn.setAttribute('data-action', 'watchlist-add');
+  }
+}
+function bindPaymentButtonsIfExists() {
+  var payBtn = el('payNowBtn');
+  if (payBtn) {
+    payBtn.onclick = null;
+    payBtn.addEventListener('click', function() { proceedToUpgrade(); });
+  }
+}
+
+function bindGlobalClickDelegation() {
+  document.addEventListener('click', function(e) {
+    var target = e.target.closest('[data-action], [data-section]');
+    if (!target) return;
+
+    if (target.dataset.section) {
+      console.log('Clicked section:', target.dataset.section);
+      showSection(target.dataset.section);
+    }
+
+    var action = target.dataset.action;
+    if (!action) return;
+    console.log('Clicked action:', action);
+
+    switch (action) {
+      case 'login':
+        if (!state.user) { handleLoginPrompt(); } else { handleAuth(); }
+        break;
+      case 'logout':
+        handleAuth();
+        break;
+      case 'new-analysis':
+        showSection('analyze');
+        break;
+      case 'view-history':
+        showSection('history');
+        break;
+      case 'refresh-market':
+        loadDashboard();
+        break;
+      case 'install-app':
+        installPwa();
+        break;
+      case 'later-install':
+        deferPwaPrompt();
+        break;
+      case 'upgrade':
+        proceedToUpgrade();
+        break;
+      case 'close-premium':
+        closePremiumModal();
+        break;
+      case 'close-plan':
+        closePlanModal();
+        break;
+      case 'choose-plan':
+        choosePremiumPlan(target.dataset.plan);
+        break;
+      case 'watchlist-add':
+        openWatchlistModal();
+        break;
+      case 'open-watchlist':
+        openWatchlistModal();
+        break;
+      case 'clear-image':
+        clearImage();
+        break;
+      case 'analyze-image':
+        if (el('analyzeImageBtn')) analyzeImage();
+        break;
+      case 'analyze-text':
+        if (el('analyzeTextBtn')) analyzeText();
+        break;
+    }
+  });
+  console.log('Global click binding active');
 }
 
 if (document.readyState === 'loading') {
